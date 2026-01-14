@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { createRoom, JoinRoom, onRoomCreated, onRoomJoined } from '../services/Socket';
+import { createRoom, JoinRoom, onRoomCreated, onRoomCreationError, onRoomJoined, onRoomJoinError } from '../services/Socket';
 
 const RoomForm = () => {
 
@@ -27,14 +27,25 @@ const RoomForm = () => {
   useEffect(() => {
 
     onRoomCreated((data) => {
-      setStatus("✅ Room created successfully!");
+      setStatus("Room created successfully!");
       console.log("Room created",data);
     });
 
     onRoomJoined((data) => {
-      setStatus("✅ Room joined successfully!");
+      setStatus("Room joined successfully!");
       console.log("Room Joined",data);
     });
+
+    onRoomCreationError((data) => {
+      setStatus("Room creation error!");
+      console.log("Room creation error",data);
+    });
+
+    onRoomJoinError((data) => {
+      setStatus("Room Join error!");
+      console.log("Room join error",data);
+    });
+
   },[])
 
   return (
@@ -50,9 +61,9 @@ const RoomForm = () => {
 
               <input type = "text" value = {userName} placeholder='Enter UserName' onChange = {(e) => setUserName(e.target.value)}/>
 
-              <button className = "text-3xl" type = "button" onClick = {() => setExistingRoom(true)}>Join Existing Room</button>
+              <button className = "text-3xl" type = "button" onClick = {() => {setExistingRoom(true) ; setRoom(false)}}>Join Existing Room</button>
 
-              <button className = "text-3xl" type = "button" onClick={() => setRoom(true)}>Create New Room</button>
+              <button className = "text-3xl" type = "button" onClick={() => {setRoom(true) ; setExistingRoom(false)}}>Create New Room</button>
 
               {room && 
                 <div>

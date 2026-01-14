@@ -11,6 +11,7 @@ export const handleConnection = (io,socket) => {
 
         if (!result.success){
             socket.emit("Room error",result.error);
+            return;
         }
 
         socket.join(roomCode);
@@ -24,6 +25,7 @@ export const handleConnection = (io,socket) => {
 
         if (!result.success){
             socket.emit("Join error",result.error);
+            return;
         }
 
         socket.join(roomCode);

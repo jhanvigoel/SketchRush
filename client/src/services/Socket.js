@@ -22,4 +22,12 @@ export const onRoomJoined = (callback) => {
   socket.on("RoomJoined",callback);
 }
 
+export const onRoomCreationError = (callback) => {
+  socket.on("Room error",callback);
+}
+
+export const onRoomJoinError = (callback) => {
+  socket.on("Join error",callback);
+}
+
 export default socket;
