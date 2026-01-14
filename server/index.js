@@ -2,6 +2,7 @@ import express from 'express'
 import http from 'http'
 import { Server } from 'socket.io'
 import cors from 'cors'
+import { handleConnection } from './controllers/socketController.js'
 //Server here is a class
 
 const App = express()
@@ -19,8 +20,8 @@ const io = new Server(server , {
 
 io.on("connection",(socket)=> {
 
-    console.log("user connected")
-    console.log("id",socket.id)
+    handleConnection(io,socket);
+    
 })
 
 //here server is being used becuase on that we are working our socketio , id app.listen then new instance is being created
