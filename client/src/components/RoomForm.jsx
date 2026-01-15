@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { createRoom, JoinRoom, onRoomCreated, onRoomCreationError, onRoomJoined, onRoomJoinError } from '../services/Socket';
+import { callAllGroup, createGroup, createRoom, getAllgroup, joinGroup, JoinRoom, onGroupCreated, onGroupCreateError, onGroupJoined, onGroupJoinError, onRoomCreated, onRoomCreationError, onRoomJoined, onRoomJoinError } from '../services/Socket';
 
 const RoomForm = () => {
 
@@ -9,11 +9,16 @@ const RoomForm = () => {
   const [roomName,setRoomName] = useState("");
   const [existingRoom,setExistingRoom] = useState(false);
   const [status,setStatus] = useState("");
+  const [group,setGroup] = useState(false);
+  const [groupName,setGroupName] = useState("");
+  const [allGroup,setAllGroup] = useState([]);
+  const [currRoom,setCurrRoom] = useState("");
 
   const createNewRoom = (e) => {
 
     e.preventDefault();
     createRoom({roomCode: roomName, userName});
+    setRoom(false);
 
   };
 
@@ -21,32 +26,83 @@ const RoomForm = () => {
 
     e.preventDefault();
     JoinRoom({roomCode: code, userName});
+    setExistingRoom(false);
 
   }
+
+  const createNewGroup = (e) => {
+
+    e.preventDefault();
+  
+    createGroup({roomCode: currRoom,groupName,userName});
+
+  }
+
+  const handleGroupJoin = (name) => {
+
+    joinGroup({roomCode : currRoom,groupName: name,userName});
+
+  }
+
 
   useEffect(() => {
 
     onRoomCreated((data) => {
       setStatus("Room created successfully!");
+      setGroup(true);
+      setCurrRoom(data.roomCode);
       console.log("Room created",data);
     });
 
     onRoomJoined((data) => {
       setStatus("Room joined successfully!");
+      setGroup(true);
+      setCurrRoom(data.roomCode);
       console.log("Room Joined",data);
+
+      callAllGroup({roomCode : currRoom});
+
+       getAllgroup((data) => {
+        setAllGroup(data.groups || []);
+       
+      });
     });
 
     onRoomCreationError((data) => {
-      setStatus("Room creation error!");
+      setStatus(data);
       console.log("Room creation error",data);
     });
 
     onRoomJoinError((data) => {
-      setStatus("Room Join error!");
+      setStatus(data);
       console.log("Room join error",data);
     });
 
-  },[])
+      onGroupCreated((data) => {
+        setStatus("Group Created Successfully");
+      });
+
+      onGroupJoined((data) => {
+        setStatus("Group Joined successfully");
+      });
+
+      onGroupCreateError((data) => {
+        setStatus(data);
+      })
+
+      onGroupJoinError((data) => {
+        setStatus(data);
+      })
+
+      callAllGroup({roomCode : currRoom});
+
+       getAllgroup((data) => {
+        setAllGroup(data.groups || []);
+       
+      });
+
+
+  },[allGroup])
 
   return (
     <div>
@@ -83,6 +139,42 @@ const RoomForm = () => {
                 </div>
               }
 
+              {group && 
+                <div>
+ 
+                  <input type = "text" value = {groupName} placeholder = "Enter GroupName" onChange = {(e) => setGroupName(e.target.value)} />
+
+                  <button type = "button" onClick = {createNewGroup}>Create Group</button>
+
+                  <div className = "text-3xl">All the groups currently in the room</div>
+
+                  {allGroup.length == 0 && <div className = "text-2xl"> No group in the room </div>}
+
+                  {allGroup.length != 0 && 
+                    <div>
+                      {allGroup.map((group) => (
+
+                        <div key = {group.groupId} className = "border p-2 mb-2"> 
+                          <p className = "font-bold">{group.groupName}</p>
+                          <p>Users : {group.users.length}</p>
+
+                          {group.users && group.users.length > 0 && (
+                            <ul className="list-disc ml-4">
+                              {group.users.map((user, idx) => (
+                                <li key={user.id || idx}>{user.name}</li>   // use user.name
+                              ))}
+                            </ul>
+                          )}
+
+                          <button onClick = {() => handleGroupJoin(group.groupName)}>Join this Group</button>
+
+                        </div>
+                      ))}
+                     </div>
+                  }
+                  
+                </div>
+              }
           </form>
         </div>
         

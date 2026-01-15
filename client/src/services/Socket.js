@@ -30,4 +30,52 @@ export const onRoomJoinError = (callback) => {
   socket.on("Join error",callback);
 }
 
+export const callAllGroup = ({roomCode}) => {
+
+  socket.emit("callAllGroup",roomCode);
+
+}
+
+export const getAllgroup = (callback) => {
+
+  socket.on("getAllGroup",callback);
+
+}
+
+export const createGroup = ({roomCode,userName,groupName}) => {
+
+  socket.emit("createGroup",roomCode,userName,groupName);
+
+}
+
+export const joinGroup = ({roomCode,userName,groupName}) => {
+  
+  socket.emit("joinGroup",roomCode,userName,groupName);
+
+}
+
+export const onGroupCreated = (callback) => {
+
+  socket.on("groupCreated",callback);
+
+}
+
+export const onGroupJoined = (callback) => {
+
+  socket.on("groupJoined",callback);
+
+}
+
+export const onGroupCreateError = (callback) => {
+
+  socket.on("GroupCreateerror",callback);
+
+}
+
+export const onGroupJoinError = (callback) => {
+
+  socket.on("GroupJoinerror",callback);
+
+}
+
 export default socket;

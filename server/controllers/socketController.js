@@ -1,5 +1,6 @@
 import e from "express";
 import { createRoom, joinRoom } from "../services/roomService.js";
+import { Allgroups, createGroup, joinGroup } from "../services/groupService.js";
 
 export const handleConnection = (io,socket) => {
 
@@ -34,4 +35,38 @@ export const handleConnection = (io,socket) => {
 
     })
 
+    socket.on("callAllGroup",(roomCode) => {
+
+        const result = Allgroups({roomCode});
+
+        socket.emit("getAllGroup",{success: true,groups:result.groups});
+
+    })
+
+    socket.on("createGroup",(roomCode,userName,groupName) => {
+
+        const result = createGroup({roomCode,userName,groupName,userId:socket.id});
+
+        if (!result.success){
+            socket.emit("GroupCreateerror",result.error);
+        }
+
+        socket.join(result.groupId);
+        socket.to(roomCode).emit("Group Created");
+        socket.emit("groupCreated",{success: true,groupId : result.groupId});
+
+    })
+
+    socket.on("joinGroup",(roomCode,userName,groupName) => {
+
+        const result = joinGroup({roomCode,userName,groupName,userId:socket.id});
+        
+        if (!result.success){
+            socket.emit("GroupJoinerror",result.error);
+        }
+
+        socket.join(result.groupId);
+        socket.to(result.groupId).emit("User Joined Group",{message : "New user Joined"});
+        socket.emit("groupJoined",{success: true,groupId : result.groupId});
+    })
 }
