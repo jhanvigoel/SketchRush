@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { callAllGroup, createGroup, createRoom, getAllgroup, joinGroup, JoinRoom, onGroupCreated, onGroupCreateError, onGroupJoined, onGroupJoinError, onRoomCreated, onRoomCreationError, onRoomJoined, onRoomJoinError } from '../services/Socket';
+import { useNavigate } from 'react-router-dom';
 
 const RoomForm = () => {
 
@@ -13,6 +14,8 @@ const RoomForm = () => {
   const [groupName,setGroupName] = useState("");
   const [allGroup,setAllGroup] = useState([]);
   const [currRoom,setCurrRoom] = useState("");
+
+  const navigate = useNavigate();
 
   const createNewRoom = (e) => {
 
@@ -80,10 +83,12 @@ const RoomForm = () => {
 
       onGroupCreated((data) => {
         setStatus("Group Created Successfully");
+        navigate('/GameRoom');
       });
 
       onGroupJoined((data) => {
         setStatus("Group Joined successfully");
+        navigate('/GameRoom');
       });
 
       onGroupCreateError((data) => {
@@ -102,7 +107,7 @@ const RoomForm = () => {
       });
 
 
-  },[allGroup])
+  },[])
 
   return (
     <div>

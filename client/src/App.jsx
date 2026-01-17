@@ -3,6 +3,7 @@ import Home from './pages/Home'
 import { Route,Routes } from 'react-router-dom'
 
 import { io } from 'socket.io-client'
+import GameRoom from './pages/GameRoom'
 
 const App = () => {
 
@@ -12,6 +13,7 @@ const App = () => {
     <div>
       <Routes>
         <Route path = '/'  element = {<Home />} />
+        <Route path = '/GameRoom' element = {<GameRoom />} />
       </Routes>
     </div>
   )
