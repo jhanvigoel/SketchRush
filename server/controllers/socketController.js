@@ -30,7 +30,6 @@ export const handleConnection = (io,socket) => {
         }
 
         socket.join(roomCode);
-        socket.to(roomCode).emit(userName, "Joined");
         socket.emit("RoomJoined", {success: true, roomCode, message: "Joined room successfully"});
 
     })
@@ -52,7 +51,7 @@ export const handleConnection = (io,socket) => {
         }
 
         socket.join(result.groupId);
-        socket.to(roomCode).emit("Group Created");
+        socket.to(roomCode).emit("Group Created",{message : "Group Created", userName : userName, groupName : groupName});
         socket.emit("groupCreated",{success: true,groupId : result.groupId});
 
     })
@@ -66,7 +65,7 @@ export const handleConnection = (io,socket) => {
         }
 
         socket.join(result.groupId);
-        socket.to(result.groupId).emit("User Joined Group",{message : "New user Joined"});
+        socket.to(roomCode).emit("User Joined Group",{message : "New user Joined", userName : userName, groupName : groupName});
         socket.emit("groupJoined",{success: true,groupId : result.groupId});
     })
 }

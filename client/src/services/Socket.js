@@ -78,4 +78,15 @@ export const onGroupJoinError = (callback) => {
 
 }
 
+export const groupCreateMessage = (callback) => {
+
+  socket.on("Group Created",callback);
+
+}
+
+export const groupJoinMessage = (callback) => {
+
+  socket.on("User Joined Group",callback);
+  
+}
 export default socket;

@@ -117,7 +117,9 @@ const Canvas = () => {
     },[color,size]);
 
   return (
-    <div style={{ width: '800px', height: '600px' }}>
+    
+    <div className = "px-20 py-20">
+    <div className = "mx-auto" style={{ width: '800px', height: '600px' }}>
       <div style={{ marginBottom: 8 }}>
         <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
         <input
@@ -134,6 +136,7 @@ const Canvas = () => {
         ref={canvasRef}
         style={{ display: 'block', touchAction: 'none', border: '1px solid #444' }}
       />
+    </div>
     </div>
   )
 }

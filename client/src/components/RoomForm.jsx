@@ -166,7 +166,7 @@ const RoomForm = () => {
                           {group.users && group.users.length > 0 && (
                             <ul className="list-disc ml-4">
                               {group.users.map((user, idx) => (
-                                <li key={user.id || idx}>{user.name}</li>   // use user.name
+                                <li key={user.id || idx}>{user.name}</li>   
                               ))}
                             </ul>
                           )}
