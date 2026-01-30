@@ -50,6 +50,7 @@ export const createGroup = ({roomCode,userName,groupName}) => {
 
 export const joinGroup = ({roomCode,userName,groupName}) => {
   
+  console.log("Emitting joinGroup:", {roomCode,userName,groupName});
   socket.emit("joinGroup",roomCode,userName,groupName);
 
 }

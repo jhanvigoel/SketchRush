@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { callAllGroup, createGroup, createRoom, getAllgroup, joinGroup, JoinRoom, onGroupCreated, onGroupCreateError, onGroupJoined, onGroupJoinError, onRoomCreated, onRoomCreationError, onRoomJoined, onRoomJoinError } from '../services/Socket';
+import React, { useEffect, useRef, useState } from 'react'
+import socket, { callAllGroup, createGroup, createRoom, getAllgroup, joinGroup, JoinRoom, onGroupCreated, onGroupCreateError, onGroupJoined, onGroupJoinError, onRoomCreated, onRoomCreationError, onRoomJoined, onRoomJoinError } from '../services/Socket';
 import { useNavigate } from 'react-router-dom';
 
 const RoomForm = () => {
@@ -14,6 +14,8 @@ const RoomForm = () => {
   const [groupName,setGroupName] = useState("");
   const [allGroup,setAllGroup] = useState([]);
   const [currRoom,setCurrRoom] = useState("");
+  const [navigatedToGame,setNavigatedToGame] = useState(false);
+  const hasNavigatedToGameRef = useRef(false);
 
   const navigate = useNavigate();
 
@@ -43,6 +45,7 @@ const RoomForm = () => {
 
   const handleGroupJoin = (name) => {
 
+    console.log("Joining group:", name, "in room:", currRoom, "as user:", userName);
     joinGroup({roomCode : currRoom,groupName: name,userName});
 
   }
@@ -50,64 +53,124 @@ const RoomForm = () => {
 
   useEffect(() => {
 
-    onRoomCreated((data) => {
+    const handleRoomCreated = (data) => {
+
       setStatus("Room created successfully!");
       setGroup(true);
       setCurrRoom(data.roomCode);
-      console.log("Room created",data);
-    });
+    }
 
-    onRoomJoined((data) => {
+    onRoomCreated(handleRoomCreated);
+
+    const handleRoomJoin = (data) => {
+
       setStatus("Room joined successfully!");
       setGroup(true);
       setCurrRoom(data.roomCode);
-      console.log("Room Joined",data);
 
-      callAllGroup({roomCode : currRoom});
+      callAllGroup({roomCode : data.roomCode});
 
-       getAllgroup((data) => {
-        setAllGroup(data.groups || []);
+       getAllgroup((groupData) => {
+        setAllGroup(groupData.groups || []);
        
       });
-    });
+      
+    }
 
-    onRoomCreationError((data) => {
+    onRoomJoined(handleRoomJoin);
+    
+    const handleRoomCreateError = (data) => {
+
       setStatus(data);
       console.log("Room creation error",data);
-    });
 
-    onRoomJoinError((data) => {
+    }
+
+    onRoomCreationError(handleRoomCreateError);
+
+    const handleRoomJoinError = (data) => {
+
       setStatus(data);
       console.log("Room join error",data);
-    });
+    }
 
-      onGroupCreated((data) => {
-        setStatus("Group Created Successfully");
-        navigate('/GameRoom');
-      });
+    onRoomJoinError(handleRoomJoinError);
 
-      onGroupJoined((data) => {
-        setStatus("Group Joined successfully");
-        navigate('/GameRoom');
-      });
+    const handleGroupCreate = (data) => {
 
-      onGroupCreateError((data) => {
-        setStatus(data);
-      })
+      setStatus("Group Created Successfully");
+      navigate('/GameRoom');
+    }
 
-      onGroupJoinError((data) => {
-        setStatus(data);
-      })
+    onGroupCreated(handleGroupCreate);
 
-      callAllGroup({roomCode : currRoom});
+    const handleGroupJoined = (data) => {
+      if (hasNavigatedToGameRef.current) return;
+      hasNavigatedToGameRef.current = true;
 
-       getAllgroup((data) => {
-        setAllGroup(data.groups || []);
-       
-      });
+      console.log("Group joined event received:", data);
+      socket.off("roomCreated");
+      socket.off("RoomJoined");
+      socket.off("Room error");
+      socket.off("Join error");
+      socket.off("groupCreated");
+      socket.off("groupJoined");
+      socket.off("GroupCreateerror");
+      socket.off("GroupJoinerror");
+      socket.off("getAllGroup");
 
+    
+      window.location.href = '/GameRoom';
+    }
+
+    onGroupJoined(handleGroupJoined);
+
+    const handleGroupCreateError = (data) => {
+      setStatus(data);
+      console.log("Group create error", data);
+    }
+
+    onGroupCreateError(handleGroupCreateError);
+
+    const handleGroupJoinError = (errorMessage) => {
+      console.log("Group join error received:", errorMessage);
+      setStatus(errorMessage);
+      
+      if (typeof errorMessage === "string" && errorMessage.toLowerCase().includes("already in the group")) {
+        if (hasNavigatedToGameRef.current) return;
+        hasNavigatedToGameRef.current = true;
+        socket.off("roomCreated");
+        socket.off("RoomJoined");
+        socket.off("Room error");
+        socket.off("Join error");
+        socket.off("groupCreated");
+        socket.off("groupJoined");
+        socket.off("GroupCreateerror");
+        socket.off("GroupJoinerror");
+        socket.off("getAllGroup");
+        window.location.href = '/GameRoom';
+      }
+    }
+
+    onGroupJoinError(handleGroupJoinError);
+
+    return () => {
+
+      socket.off("roomCreated", handleRoomCreated);
+      socket.off("RoomJoined", handleRoomJoin);
+      socket.off("Room error", handleRoomCreateError);
+      socket.off("Join error", handleRoomJoinError);
+      socket.off("groupCreated", handleGroupCreate);
+      socket.off("groupJoined", handleGroupJoined);
+      socket.off("GroupCreateerror", handleGroupCreateError);
+      socket.off("GroupJoinerror", handleGroupJoinError);
+    }
 
   },[])
+
+  if (navigatedToGame) {
+    return null;
+  }
 
   return (
     <div>
@@ -118,7 +181,11 @@ const RoomForm = () => {
 
           <form className="flex flex-col gap-4">
 
-              {status && <div className="text-green-600 font-bold text-lg">{status}</div>}
+              {status && (
+                <div className={`font-bold text-lg ${(typeof status === "string" && (status.includes("error") || status.includes("already") || status.includes("doesn't"))) ? "text-red-600" : "text-green-600"}`}>
+                  {status}
+                </div>
+              )}
 
               <input type = "text" value = {userName} placeholder='Enter UserName' onChange = {(e) => setUserName(e.target.value)}/>
 
@@ -159,8 +226,8 @@ const RoomForm = () => {
                     <div>
                       {allGroup.map((group) => (
 
-                        <div key = {group.groupId} className = "border p-2 mb-2"> 
-                          <p className = "font-bold">{group.groupName}</p>
+                        <div key = {`${group.roomCode}-${group.name}`} className = "border p-2 mb-2"> 
+                          <p className = "font-bold">Hello {group.name}</p>
                           <p>Users : {group.users.length}</p>
 
                           {group.users && group.users.length > 0 && (
@@ -171,7 +238,7 @@ const RoomForm = () => {
                             </ul>
                           )}
 
-                          <button onClick = {() => handleGroupJoin(group.groupName)}>Join this Group</button>
+                          <button onClick = {() => handleGroupJoin(group.name)}>Join this Group</button>
 
                         </div>
                       ))}

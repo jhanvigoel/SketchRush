@@ -30,7 +30,7 @@ export const joinGroup = ({groupName,roomCode,userName,userId}) => {
 
     const curr = groups.get(groupId);
 
-    if (groups.users.some(user => user.id === userId )){
+    if (curr.users.some(user => user.id === userId )){
         return {success : false,error: "User already in the group"};
     }
 
@@ -44,6 +44,6 @@ export const Allgroups = ({roomCode}) => {
 
     const roomGroups = Array.from(groups.values()).filter(g => g.roomCode == roomCode);
 
-    return {sucess : true, groups: roomGroups};
+    return {success : true, groups: roomGroups};
     
 }

@@ -5,6 +5,8 @@ import { groupCreateMessage, groupJoinMessage } from '../services/Socket'
 
 const GameRoom = () => {
 
+  console.log("GameRoom mounted!");
+
   const [message,setMessage] = useState("");
 
   useEffect(() => {
@@ -21,7 +23,7 @@ const GameRoom = () => {
 
     })
 
-  })
+  }, [])
   
   return (
     <div className = "px-10 py-10">
