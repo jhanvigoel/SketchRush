@@ -7,7 +7,8 @@ import { handleConnection } from './controllers/socketController.js'
 
 const App = express()
 
-App.use(cors());
+App.use(cors({ origin: process.env.CLIENT_ORIGIN, credentials: true }));
+
 
 const server = http.createServer(App);
 
