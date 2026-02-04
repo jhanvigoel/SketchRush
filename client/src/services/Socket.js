@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:3000", {
+const socket = io(import.meta.env,VITE_URL, {
   reconnection: true,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
@@ -23,7 +23,6 @@ socket.on("connect_error", (error) => {
   console.log("⚠️ Connection Error:", error);
 });
 
-// Helper function to ensure socket is connected before emitting
 const ensureConnected = () => {
   return new Promise((resolve) => {
     if (isConnected) {

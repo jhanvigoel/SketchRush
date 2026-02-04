@@ -52,7 +52,7 @@ const RoomForm = () => {
 
   useEffect(() => {
 
-    if (hasNavigatedToGameRef.current) return; // Don't set up listeners if already navigated
+    if (hasNavigatedToGameRef.current) return; 
 
     const handleRoomCreated = (data) => {
 
@@ -82,7 +82,6 @@ const RoomForm = () => {
 
       socket.off("RoomJoined",handleRoomJoin);
 
-      // Stop listening for room join errors — we're in the room; ignore stale "Room doesn't exist"
       socket.off("Join error", handleRoomJoinError);
 
       callAllGroup({roomCode : data.roomCode});

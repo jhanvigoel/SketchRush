@@ -54,7 +54,17 @@ const GameRoom = () => {
 
         <div className = "text-left ml-20 text-5xl font-bold ">Room Name : {roomName}</div>
 
-        <button type = "button" onClick = {() => setShowSettings((prev) => !prev)}> <Settings /> </button>
+        <div className="relative">
+          <button type="button" onClick={() => setShowSettings((prev) => !prev)}>
+            <Settings />
+          </button>
+
+          {showSettings && (
+            <div className="absolute right-0 top-full mt-2 z-50 max-h-[70vh] overflow-y-auto">
+              <RoomSettings />
+            </div>
+          )}
+        </div>
 
       </div>
 
@@ -64,9 +74,6 @@ const GameRoom = () => {
         <TeamPlayers teamName={team2.name} players={team2.users} />
       </div>
 
-      {showSettings && (
-        <RoomSettings />
-      )}
     </div>
   );
 };
