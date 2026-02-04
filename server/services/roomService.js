@@ -24,8 +24,12 @@ export const joinRoom = ({roomCode,userName,userId}) => {
 
     const room = rooms.get(roomCode);
 
-    if (room.users.some(user => user.id === userId)){
-        return {success : false, error : "User already in the room"};
+    const existingUser = room.users.find(user => user.name === userName);
+    
+    if (existingUser) {
+        console.log(`[roomService] User ${userName} reconnecting, updating socket ID from ${existingUser.id} to ${userId}`);
+        existingUser.id = userId;
+        return {success : true}
     }
 
     room.users.push({id : userId, name : userName});

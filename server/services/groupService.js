@@ -16,7 +16,9 @@ export const createGroup = ({groupName,userName,roomCode,userId}) => {
         createdAt: Date.now(),
     })
 
-    return {success : true, groupId};
+    const curr = groups.get(groupId);
+
+    return {success : true, groupId, Groups : curr};
 
 }
 
@@ -36,7 +38,7 @@ export const joinGroup = ({groupName,roomCode,userName,userId}) => {
 
     curr.users.push({name : userName,id : userId});
 
-    return {success : true,groupId};
+    return {success : true,groupId,Groups : curr};
 
 }
 

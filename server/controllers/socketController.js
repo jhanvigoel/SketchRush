@@ -59,16 +59,13 @@ export const handleConnection = (io,socket) => {
 
     socket.on("joinGroup",(roomCode,userName,groupName) => {
 
-        console.log("[joinGroup] received:", { roomCode, userName, groupName, socketId: socket.id });
         const result = joinGroup({roomCode,userName,groupName,userId:socket.id});
-
+        
         if (!result.success){
-            console.log("[joinGroup] failed:", result.error);
             socket.emit("GroupJoinerror",result.error);
             return;
         }
 
-        console.log("[joinGroup] success, groupId:", result.groupId);
         socket.join(result.groupId);
         socket.to(roomCode).emit("User Joined Group",{message : "New user Joined", userName : userName, groupName : groupName});
         socket.emit("groupJoined",{success: true,groupId : result.groupId});

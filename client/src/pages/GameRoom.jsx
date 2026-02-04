@@ -2,40 +2,74 @@ import React, { useEffect, useState } from 'react'
 import Canvas from '../components/Canvas'
 import TeamPlayers from '../components/TeamPlayers'
 import { groupCreateMessage, groupJoinMessage } from '../services/Socket'
+import { useSocket } from '../context/SocketContext'
+import { useLocation } from 'react-router-dom'
+import { Clock, Settings } from 'lucide-react'
+import RoomSettings from '../components/RoomSettings'
 
 const GameRoom = () => {
-
-  console.log("GameRoom mounted!");
-
-  const [message,setMessage] = useState("");
+  const { state, dispatch } = useSocket();
+  const { socket, groups, groupName, userName } = state;
+  const location = useLocation();
+  const roomName = location.state?.roomName;
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
+    const handleJoinMessage = (data) => {
+      
+      alert(`User ${data.userName} joined Group ${data.groupName}`);
+      
+      
+      if (data.allGroups) {
+        dispatch({ type: "SET_GROUPS", payload: data.allGroups });
+      }
+    };
 
-    groupJoinMessage((data) => {
+    const handleCreateMessage = (data) => {
+      alert(`User ${data.userName} created Group ${data.groupName}`);
+      if (data.allGroups) {
+        dispatch({ type: "SET_GROUPS", payload: data.allGroups });
+      }
+    };
 
-      alert(` user ${data.userName} joined Group ${data.groupName}`);
+    groupJoinMessage(handleJoinMessage);
+    groupCreateMessage(handleCreateMessage);
 
-    })
+    return () => {
+     
+      socket.off("User Joined Group", handleJoinMessage);
+      socket.off("Group Created", handleCreateMessage);
+    };
+  }, [socket, dispatch, groups]); 
 
-    groupCreateMessage((data) => {
+  const team1 = groups[0] || { name: "Team1", users: [] };
+  const team2 = groups[1] || { name: "Team2", users: [] };
 
-      alert(`user ${data.userName} created Group ${data.groupName}`);
-
-    })
-
-  }, [])
-  
   return (
-    <div className = "px-10 py-10">
+    <div className="px-10 py-10">
 
-      <div className = "flex flex-cols-3">
+      <div className = "flex flex-row justify-between">
 
-        <TeamPlayers  teamName = {"xyz"} />
-        <Canvas />
-        <TeamPlayers teamName = {"yz"} />
+        <Clock />
+
+        <div className = "text-left ml-20 text-5xl font-bold ">Room Name : {roomName}</div>
+
+        <button type = "button" onClick = {() => setShowSettings((prev) => !prev)}> <Settings /> </button>
+
       </div>
+
+      <div className="flex flex-row justify-between">
+        <TeamPlayers teamName={team1.name} players={team1.users} />
+        <Canvas />
+        <TeamPlayers teamName={team2.name} players={team2.users} />
+      </div>
+
+      {showSettings && (
+        <RoomSettings />
+      )}
     </div>
-  )
-}
+  );
+};
+
 
 export default GameRoom

@@ -1,77 +1,95 @@
 import React, { useEffect, useRef, useState } from 'react'
-import socket, { callAllGroup, createGroup, createRoom, getAllgroup, joinGroup, JoinRoom, onGroupCreated, onGroupCreateError, onGroupJoined, onGroupJoinError, onRoomCreated, onRoomCreationError, onRoomJoined, onRoomJoinError } from '../services/Socket';
-import { useNavigate } from 'react-router-dom';
+import { callAllGroup, createGroup, createRoom, getAllgroup, joinGroup, JoinRoom, onGroupCreated, onGroupCreateError, onGroupJoined, onGroupJoinError, onRoomCreated, onRoomCreationError, onRoomJoined, onRoomJoinError } from '../services/Socket';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useSocket } from '../context/SocketContext';
 
 const RoomForm = () => {
 
-  const [userName,setUserName] = useState("");
+  const {state, dispatch} = useSocket();
+  const {socket, userName, roomCode: currRoom, groupName, groups: allGroup} = state;
+
   const [code,setCode] = useState("");
   const [room,setRoom] = useState(false);
   const [roomName,setRoomName] = useState("");
   const [existingRoom,setExistingRoom] = useState(false);
   const [status,setStatus] = useState("");
   const [group,setGroup] = useState(false);
-  const [groupName,setGroupName] = useState("");
-  const [allGroup,setAllGroup] = useState([]);
-  const [currRoom,setCurrRoom] = useState("");
-  const [navigatedToGame,setNavigatedToGame] = useState(false);
   const hasNavigatedToGameRef = useRef(false);
 
   const navigate = useNavigate();
 
-  const createNewRoom = (e) => {
+  const createNewRoom = async (e) => {
 
     e.preventDefault();
-    createRoom({roomCode: roomName, userName});
+    await createRoom({roomCode: roomName, userName});
     setRoom(false);
 
   };
 
-  const JoinExistingRoom = (e) => {
+  const JoinExistingRoom = async (e) => {
 
     e.preventDefault();
-    JoinRoom({roomCode: code, userName});
+    await JoinRoom({roomCode: code, userName});
     setExistingRoom(false);
 
   }
 
-  const createNewGroup = (e) => {
+  const createNewGroup = async (e) => {
 
     e.preventDefault();
   
-    createGroup({roomCode: currRoom,groupName,userName});
+    await createGroup({roomCode: currRoom,groupName,userName});
 
   }
 
-  const handleGroupJoin = (name) => {
+  const handleGroupJoin = async (name) => {
 
     console.log("Joining group:", name, "in room:", currRoom, "as user:", userName);
-    joinGroup({roomCode : currRoom,groupName: name,userName});
+    await joinGroup({roomCode : currRoom,groupName: name,userName});
 
   }
 
 
   useEffect(() => {
 
+    if (hasNavigatedToGameRef.current) return; // Don't set up listeners if already navigated
+
     const handleRoomCreated = (data) => {
 
+      if (hasNavigatedToGameRef.current) return;
+      
       setStatus("Room created successfully!");
       setGroup(true);
-      setCurrRoom(data.roomCode);
+
+      dispatch({type: "SET_USER", payload: userName});
+      dispatch({type: "SET_ROOM", payload: data.roomCode});
+
+      socket.off("roomCreated",handleRoomCreated);
+      socket.off("Room error",handleRoomCreateError);
     }
 
     onRoomCreated(handleRoomCreated);
 
     const handleRoomJoin = (data) => {
 
+      if (hasNavigatedToGameRef.current) return;
+      
       setStatus("Room joined successfully!");
       setGroup(true);
-      setCurrRoom(data.roomCode);
+
+      dispatch({type: "SET_USER", payload: userName});
+      dispatch({type: "SET_ROOM", payload: data.roomCode});
+
+      socket.off("RoomJoined",handleRoomJoin);
+
+      // Stop listening for room join errors — we're in the room; ignore stale "Room doesn't exist"
+      socket.off("Join error", handleRoomJoinError);
 
       callAllGroup({roomCode : data.roomCode});
 
        getAllgroup((groupData) => {
-        setAllGroup(groupData.groups || []);
+        
+        dispatch({type: "SET_GROUPS", payload: groupData.groups || []});
        
       });
       
@@ -89,38 +107,43 @@ const RoomForm = () => {
     onRoomCreationError(handleRoomCreateError);
 
     const handleRoomJoinError = (data) => {
-
       setStatus(data);
-      console.log("Room join error",data);
+      console.log("Room join error", data);
     }
 
     onRoomJoinError(handleRoomJoinError);
 
     const handleGroupCreate = (data) => {
 
+      if (hasNavigatedToGameRef.current) return;
+      
+      console.log("Group created, navigating to GameRoom");
       setStatus("Group Created Successfully");
-      navigate('/GameRoom');
+      
+      dispatch({type: "SET_GROUP_NAME", payload: groupName});
+      
+      socket.off("groupCreated",handleGroupCreate);
+      socket.off("GroupCreateerror",handleGroupCreateError);
+      
+      hasNavigatedToGameRef.current = true;
+      navigate('/GameRoom', { replace: true, state: { roomName: currRoom } });
     }
 
     onGroupCreated(handleGroupCreate);
 
     const handleGroupJoined = (data) => {
+      
       if (hasNavigatedToGameRef.current) return;
+      
+      console.log("Group joined, navigating to GameRoom");
+
+      dispatch({type: "SET_GROUP_NAME", payload: data.groupName || groupName});
+
+      socket.off("groupJoined",handleGroupJoined);
+      socket.off("GroupJoinerror",handleGroupJoinError);
+      
       hasNavigatedToGameRef.current = true;
-
-      console.log("Group joined event received:", data);
-      socket.off("roomCreated");
-      socket.off("RoomJoined");
-      socket.off("Room error");
-      socket.off("Join error");
-      socket.off("groupCreated");
-      socket.off("groupJoined");
-      socket.off("GroupCreateerror");
-      socket.off("GroupJoinerror");
-      socket.off("getAllGroup");
-
-    
-      window.location.href = '/GameRoom';
+      navigate('/GameRoom', { replace: true, state: { roomName: currRoom } });
     }
 
     onGroupJoined(handleGroupJoined);
@@ -135,21 +158,6 @@ const RoomForm = () => {
     const handleGroupJoinError = (errorMessage) => {
       console.log("Group join error received:", errorMessage);
       setStatus(errorMessage);
-      
-      if (typeof errorMessage === "string" && errorMessage.toLowerCase().includes("already in the group")) {
-        if (hasNavigatedToGameRef.current) return;
-        hasNavigatedToGameRef.current = true;
-        socket.off("roomCreated");
-        socket.off("RoomJoined");
-        socket.off("Room error");
-        socket.off("Join error");
-        socket.off("groupCreated");
-        socket.off("groupJoined");
-        socket.off("GroupCreateerror");
-        socket.off("GroupJoinerror");
-        socket.off("getAllGroup");
-        window.location.href = '/GameRoom';
-      }
     }
 
     onGroupJoinError(handleGroupJoinError);
@@ -166,9 +174,9 @@ const RoomForm = () => {
       socket.off("GroupJoinerror", handleGroupJoinError);
     }
 
-  },[])
+  },[socket,userName,groupName,currRoom,allGroup])
 
-  if (navigatedToGame) {
+  if (hasNavigatedToGameRef.current) {
     return null;
   }
 
@@ -187,7 +195,7 @@ const RoomForm = () => {
                 </div>
               )}
 
-              <input type = "text" value = {userName} placeholder='Enter UserName' onChange = {(e) => setUserName(e.target.value)}/>
+              <input type = "text" value = {userName} placeholder='Enter UserName' onChange = {(e) => dispatch({type: "SET_USER", payload: e.target.value})}/>
 
               <button className = "text-3xl" type = "button" onClick = {() => {setExistingRoom(true) ; setRoom(false)}}>Join Existing Room</button>
 
@@ -214,7 +222,7 @@ const RoomForm = () => {
               {group && 
                 <div>
  
-                  <input type = "text" value = {groupName} placeholder = "Enter GroupName" onChange = {(e) => setGroupName(e.target.value)} />
+                  <input type = "text" value = {groupName} placeholder = "Enter GroupName" onChange = {(e) => dispatch({type: "SET_GROUP_NAME", payload: e.target.value})} />
 
                   <button type = "button" onClick = {createNewGroup}>Create Group</button>
 
@@ -238,7 +246,7 @@ const RoomForm = () => {
                             </ul>
                           )}
 
-                          <button onClick = {() => handleGroupJoin(group.name)}>Join this Group</button>
+                          <button type = "button" onClick = {() => handleGroupJoin(group.name)}>Join this Group</button>
 
                         </div>
                       ))}
