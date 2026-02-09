@@ -10,14 +10,6 @@ const Canvas = () => {
     const [color,setColor] = useState('#ffffff');
     const [size,setSize] = useState(4);
 
-    const getPos = (e) => {
-
-      const rect = canvasRef.current.getBoundingClientRect();
-
-      return {x : e.clientX - rect.left , y : eClient.Y - rect.top};
-
-    }
-
     useEffect(() => {
 
       const canvas = canvasRef.current;
@@ -120,6 +112,11 @@ const Canvas = () => {
     
     <div className = "px-20 py-20">
     <div className = "mx-auto" style={{ width: '800px', height: '600px' }}>
+      <canvas
+        ref={canvasRef}
+        style={{ display: 'block', touchAction: 'none', border: '1px solid #444' }}
+      />
+
       <div style={{ marginBottom: 8 }}>
         <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
         <input
@@ -132,10 +129,6 @@ const Canvas = () => {
         />
         <span style={{ marginLeft: 8, color: '#fff' }}>Size: {size}</span>
       </div>
-      <canvas
-        ref={canvasRef}
-        style={{ display: 'block', touchAction: 'none', border: '1px solid #444' }}
-      />
     </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import React from 'react'
 
-const TeamPlayers = ({teamName,players}) => {
+const TeamPlayers = ({teamName,players,index}) => {
   return (
     <div>
 
@@ -13,7 +13,7 @@ const TeamPlayers = ({teamName,players}) => {
                 {players && players.length > 0 ? (
 
                     players.map((player) => (
-                        <li key = {player.id} claassName = "text-3xl">{player.name}</li>
+                        <li key = {player.id} className = "text-3xl">{player.name}</li>
                     ))
                 ) : (
                     <li className = "text-6xl"> Waiting ..</li>

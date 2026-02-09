@@ -234,7 +234,7 @@ const RoomForm = () => {
                       {allGroup.map((group) => (
 
                         <div key = {`${group.roomCode}-${group.name}`} className = "border p-2 mb-2"> 
-                          <p className = "font-bold">Hello {group.name}</p>
+                          <p className = "font-bold">{group.name}</p>
                           <p>Users : {group.users.length}</p>
 
                           {group.users && group.users.length > 0 && (
