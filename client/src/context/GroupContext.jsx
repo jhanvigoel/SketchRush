@@ -27,10 +27,31 @@ function reducer(state,action){
 
 }
 
+const getWord = (settings) => {
+
+    switch(settings.difficulty_level){
+        case "EASY_WORDS":
+            return settings.EASY_WORDS;
+        case "MEDIUM_WORDS":
+            return settings.MEDIUM_WORDS;
+        case "HARD_WORDS":
+            return settings.HARD_WORDS;
+        case "FUNNY_WORDS":
+            return settings.FUNNY_wORDS;
+        case "INDIAN_WORDS":
+            return settings.INDIAN_WORDS;
+        case "CUSTOM":
+            return settings.MEDIUM_WORDS;
+        default:
+            return settings.MEDIUM_WORDS;
+    }
+}
+
 const GroupContext = ({children}) => {
 
-    const {state1,dispatch1} = useSettings();
-     const {words,difficulty_level,EASY_WORDS,MEDIUM_WORDS,HARD_WORDS,FUNNY_WORDS,INDIAN_WORDS} = state1;
+    const {state : settings} = useSettings();
+
+    const words = getWord(settings);
 
     const [state,dispatch] = useReducer(reducer,initialState);
 

@@ -110,11 +110,12 @@ const Canvas = () => {
 
   return (
     
-    <div className = "px-20 py-20">
-    <div className = "mx-auto" style={{ width: '800px', height: '600px' }}>
+    <div className = "w-full">
+    <div className = "w-full h-[360px]">
       <canvas
         ref={canvasRef}
         style={{ display: 'block', touchAction: 'none', border: '1px solid #444' }}
+        className = "w-full h-full"
       />
 
       <div style={{ marginBottom: 8 }}>
