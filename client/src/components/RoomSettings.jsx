@@ -1,11 +1,14 @@
 import { Blend, Clock1, Lightbulb, Undo2, WholeWord } from 'lucide-react';
 import React, { useState } from 'react'
 import RoomSettingContext, { useSettings } from '../context/RoomSettingContext';
+import { useGroupContext } from '../context/GroupContext';
 
 const RoomSettings = () => {
 
     const {state,dispatch} = useSettings();
     const {time,rounds,hints,words,difficulty_level,EASY_WORDS,MEDIUM_WORDS,HARD_WORDS,FUNNY_WORDS,INDIAN_WORDS} = state;
+
+    const {startTurn} = useGroupContext();
 
     const [currTime,setTime] = useState(time);
     const [currRound,setRound] = useState(rounds); 
@@ -22,6 +25,7 @@ const RoomSettings = () => {
         dispatch({type : "SET_LEVEL" , payload : currlevel});
         dispatch({type : "SET_WORDS" , payload : currwords});
 
+        startTurn();
     }
 
   return (

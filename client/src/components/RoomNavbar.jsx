@@ -1,10 +1,31 @@
 import { Clock, Settings } from 'lucide-react'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import RoomSettings from './RoomSettings'
+import { useGroupContext } from '../context/GroupContext'
 
 const RoomNavbar = ({RoomName}) => {
 
     const [showSettings, setShowSettings] = useState(false);
+    const {state} = useGroupContext();
+    const {turnsEndAt} = state;
+    const [timeLeft, setTimeLeft] = useState(0);
+
+    useEffect(() => {
+      if (turnsEndAt <= 0) return; 
+      
+      const interval = setInterval(() => {
+        const remaining = Math.max(0, turnsEndAt - Date.now());
+        setTimeLeft(Math.ceil(remaining / 1000));
+      }, 100);
+
+      return () => clearInterval(interval);
+    }, [turnsEndAt]);
+
+    const formatTime = (seconds) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
   return (
     <div>
@@ -19,7 +40,7 @@ const RoomNavbar = ({RoomName}) => {
 
                 <div>
                     <div className = "text-xs font-semibold text-slate-500">TIME</div>
-                    <div className = "text-lg font-bold text-slate-900">0s</div>
+                    <div className = "text-lg font-bold text-slate-900">{timeLeft > 0 ? formatTime(timeLeft) : "0:00"}</div>
                 </div>
 
             </div>

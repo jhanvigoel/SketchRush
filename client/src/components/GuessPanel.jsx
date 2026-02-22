@@ -1,6 +1,11 @@
 import React from 'react'
+import { useGroupContext } from '../context/GroupContext'
 
 const GuessPanel = () => {
+
+  const {state,dispatch} = useGroupContext();
+  const {currentWord} = state;
+  
   return (
     <div>
         <div className = "rounded-2xl bg-white p-5 shadow-lg">

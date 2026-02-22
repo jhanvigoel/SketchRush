@@ -94,10 +94,7 @@ const GameRoom = () => {
 
           </div>
 
-          
-          {/*<TeamPlayers teamName={team1.name} players={team1.users} />
-          <Canvas />
-          <TeamPlayers teamName={team2.name} players={team2.users} />*/}
+        
         
 
       </div>
