@@ -6,17 +6,24 @@ import { useGroupContext } from '../context/GroupContext'
 const RoomNavbar = ({RoomName}) => {
 
     const [showSettings, setShowSettings] = useState(false);
-    const {state} = useGroupContext();
+    const {state, nextTurn} = useGroupContext();
     const {turnsEndAt} = state;
     const [timeLeft, setTimeLeft] = useState(0);
+    const expiredRef = React.useRef(false);
 
     useEffect(() => {
-      if (turnsEndAt <= 0) return; 
+      if (turnsEndAt <= 0) return;
+      expiredRef.current = false;
       
       const interval = setInterval(() => {
         const remaining = Math.max(0, turnsEndAt - Date.now());
         setTimeLeft(Math.ceil(remaining / 1000));
-      }, 100);
+
+        if (remaining === 0 && !expiredRef.current) {
+          expiredRef.current = true;
+          nextTurn();
+        }
+      }, 1000);
 
       return () => clearInterval(interval);
     }, [turnsEndAt]);

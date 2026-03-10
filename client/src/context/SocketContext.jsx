@@ -14,6 +14,7 @@ const initialState = {
     roomCode: "",
     groupName: "",
     groups: [],
+    groupIndex: ""
 };
 
 function reducer(state,action) {
@@ -28,6 +29,8 @@ function reducer(state,action) {
       return { ...state, groupName: action.payload};
     case "SET_GROUPS":
       return { ...state, groups: action.payload};
+    case "SET_GROUP_INDEX":
+      return {...state,groupIndex: action.payload};
     default:
       return state;
   }

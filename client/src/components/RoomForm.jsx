@@ -120,6 +120,7 @@ const RoomForm = () => {
       setStatus("Group Created Successfully");
       
       dispatch({type: "SET_GROUP_NAME", payload: groupName});
+      dispatch({type: "SET_GROUP_INDEX", payload : "0"});
       
       socket.off("groupCreated",handleGroupCreate);
       socket.off("GroupCreateerror",handleGroupCreateError);
@@ -137,6 +138,7 @@ const RoomForm = () => {
       console.log("Group joined, navigating to GameRoom");
 
       dispatch({type: "SET_GROUP_NAME", payload: data.groupName || groupName});
+      dispatch({type: "SET_GROUP_INDEX", payload : "1"});
 
       socket.off("groupJoined",handleGroupJoined);
       socket.off("GroupJoinerror",handleGroupJoinError);

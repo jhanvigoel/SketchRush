@@ -7,6 +7,7 @@ import { useLocation } from 'react-router-dom'
 import RoomNavbar from '../components/RoomNavbar'
 import WordBox from '../components/WordBox'
 import GuessPanel from '../components/GuessPanel'
+import { useGroupContext } from '../context/GroupContext'
 
 const GameRoom = () => {
 
@@ -14,6 +15,8 @@ const GameRoom = () => {
   const { socket, groups, groupName, userName , roomCode } = state;
   const location = useLocation();
   const roomName = location.state?.roomName;
+  const { startTurn } = useGroupContext();
+  const [gameStarted, setGameStarted] = useState(false);
 
   useEffect(() => {
 
@@ -75,8 +78,20 @@ const GameRoom = () => {
               <WordBox />
 
               <div className="rounded-2xl bg-white p-5 shadow-lg">
-              <div className="h-[360px] w-full rounded-xl border border-slate-200">
+              <div className="relative h-[360px] w-full rounded-xl border border-slate-200">
                 <Canvas />
+                {!gameStarted && (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-indigo-600/90 backdrop-blur-sm">
+                    <div className="text-2xl font-extrabold text-white mb-2">Ready to Play?</div>
+                    <p className="text-indigo-100 text-sm mb-6">Click below to kick off the first round!</p>
+                    <button
+                      onClick={() => { startTurn(); setGameStarted(true); }}
+                      className="rounded-xl bg-white px-10 py-3 text-indigo-600 font-extrabold text-lg shadow-lg hover:bg-indigo-50 active:scale-95 transition-all"
+                    >
+                      Start Game
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="mt-3 flex items-center gap-3">
                 <button className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold">Clear</button>

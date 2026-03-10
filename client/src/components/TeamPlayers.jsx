@@ -1,6 +1,15 @@
 import React from 'react'
+import { useGroupContext } from '../context/GroupContext'
 
-const TeamPlayers = ({teamName,players,index}) => {
+const TeamPlayers = ({teamName, players, index}) => {
+
+    const {state} = useGroupContext();
+    const {groups} = state;
+
+    const teamIdx = Number(index);
+    const score = groups?.[teamIdx]?.[0] ?? 0;
+    const status = groups?.[teamIdx]?.[1] ?? 'Waiting';
+
   return (
     <div>
 
@@ -19,6 +28,9 @@ const TeamPlayers = ({teamName,players,index}) => {
                     <li className = "text-6xl"> Waiting ..</li>
                 )}
             </ul>
+
+            <div className = "text-3xl font-bold"> Score : {score}</div>
+            <div className = "text-3xl font-bold"> Status : {status} </div>
         </div>
     </div>
   )

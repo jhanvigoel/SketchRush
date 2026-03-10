@@ -18,7 +18,7 @@ function reducer(state,action){
         case "SET_TEAM1_STATUS":
             return {...state,groups : [[state.groups[0][0],action.payload],state.groups[1]]};
         case "SET_TEAM1_SCORE":
-            return {...state,groups : [[action.payload],state.groups[0][1],state.groups[1]]};
+            return {...state,groups : [[action.payload,state.groups[0][1]],state.groups[1]]};
         case "SET_TEAM2_SCORE":
             return {...state,groups : [state.groups[0],[action.payload,state.groups[1][1]]]};
         case "SET_TEAM2_STATUS":
