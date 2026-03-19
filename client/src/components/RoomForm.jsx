@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { callAllGroup, createGroup, createRoom, getAllgroup, joinGroup, JoinRoom, onGroupCreated, onGroupCreateError, onGroupJoined, onGroupJoinError, onRoomCreated, onRoomCreationError, onRoomJoined, onRoomJoinError } from '../services/Socket';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { callAllGroup, createGroup, createRoom, getAllgroup, joinGroup, JoinRoom, offAllgroup, onGroupCreated, onGroupCreateError, onGroupJoined, onGroupJoinError, onRoomCreated, onRoomCreationError, onRoomJoined, onRoomJoinError } from '../services/Socket';
+import { useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 
 const RoomForm = () => {
@@ -17,6 +17,34 @@ const RoomForm = () => {
   const hasNavigatedToGameRef = useRef(false);
 
   const navigate = useNavigate();
+
+  const fetchGroupsAndResolveIndex = (roomCode, targetGroupName, fallbackIndex = 0) => {
+    if (!roomCode) {
+      dispatch({ type: "SET_GROUP_INDEX", payload: String(fallbackIndex) });
+      return;
+    }
+
+    const handleGroups = (groupData) => {
+      offAllgroup(handleGroups);
+
+      const groups = groupData?.groups || [];
+      dispatch({ type: "SET_GROUPS", payload: groups });
+
+      let idx = groups.findIndex((g) => (g.users || []).some((u) => u.id === socket.id));
+      if (idx < 0) {
+        idx = groups.findIndex((g) => g.name === targetGroupName);
+      }
+      if (idx < 0) {
+        idx = groups.findIndex((g) => (g.users || []).some((u) => u.name === userName));
+      }
+      if (idx < 0) idx = fallbackIndex;
+
+      dispatch({ type: "SET_GROUP_INDEX", payload: String(idx) });
+    };
+
+    getAllgroup(handleGroups);
+    callAllGroup({ roomCode });
+  };
 
   const createNewRoom = async (e) => {
 
@@ -84,13 +112,7 @@ const RoomForm = () => {
 
       socket.off("Join error", handleRoomJoinError);
 
-      callAllGroup({roomCode : data.roomCode});
-
-       getAllgroup((groupData) => {
-        
-        dispatch({type: "SET_GROUPS", payload: groupData.groups || []});
-       
-      });
+      fetchGroupsAndResolveIndex(data.roomCode, groupName, 0);
       
     }
 
@@ -119,8 +141,9 @@ const RoomForm = () => {
       console.log("Group created, navigating to GameRoom");
       setStatus("Group Created Successfully");
       
-      dispatch({type: "SET_GROUP_NAME", payload: groupName});
-      dispatch({type: "SET_GROUP_INDEX", payload : "0"});
+      const resolvedGroupName = data.groupName || groupName;
+      dispatch({type: "SET_GROUP_NAME", payload: resolvedGroupName});
+      fetchGroupsAndResolveIndex(currRoom, resolvedGroupName, 0);
       
       socket.off("groupCreated",handleGroupCreate);
       socket.off("GroupCreateerror",handleGroupCreateError);
@@ -137,8 +160,9 @@ const RoomForm = () => {
       
       console.log("Group joined, navigating to GameRoom");
 
-      dispatch({type: "SET_GROUP_NAME", payload: data.groupName || groupName});
-      dispatch({type: "SET_GROUP_INDEX", payload : "1"});
+      const resolvedGroupName = data.groupName || groupName;
+      dispatch({type: "SET_GROUP_NAME", payload: resolvedGroupName});
+      fetchGroupsAndResolveIndex(currRoom, resolvedGroupName, 1);
 
       socket.off("groupJoined",handleGroupJoined);
       socket.off("GroupJoinerror",handleGroupJoinError);
@@ -175,91 +199,162 @@ const RoomForm = () => {
       socket.off("GroupJoinerror", handleGroupJoinError);
     }
 
-  },[socket,userName,groupName,currRoom,allGroup])
+  },[socket,userName,groupName,currRoom,dispatch,navigate])
 
   if (hasNavigatedToGameRef.current) {
     return null;
   }
 
   return (
-    <div>
+    <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
+      <div className="mx-auto w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-lg sm:p-8">
+        <div className="mb-6">
+          <h2 className="text-2xl font-extrabold text-slate-900 sm:text-3xl">Join Sketch Rush</h2>
+          <p className="mt-1 text-sm text-slate-600">Create a room, join one, and pick your team.</p>
+        </div>
 
-      <div className = "mt-28 flex flex-col justify-center items-center">
+        <form className="space-y-4">
+          {status && (
+            <div className={`rounded-lg border px-3 py-2 text-sm font-semibold ${(typeof status === "string" && (status.includes("error") || status.includes("already") || status.includes("doesn't"))) ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
+              {status}
+            </div>
+          )}
 
-        <div className = "px-5 py-5 rounded-lg border border-black">
+          <div className="space-y-1">
+            <label className="text-sm font-semibold text-slate-700">Username</label>
+            <input
+              type="text"
+              value={userName}
+              placeholder="Enter username"
+              onChange={(e) => dispatch({type: "SET_USER", payload: e.target.value})}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            />
+          </div>
 
-          <form className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+              type="button"
+              onClick={() => {setExistingRoom(true); setRoom(false)}}
+            >
+              Join Existing Room
+            </button>
 
-              {status && (
-                <div className={`font-bold text-lg ${(typeof status === "string" && (status.includes("error") || status.includes("already") || status.includes("doesn't"))) ? "text-red-600" : "text-green-600"}`}>
-                  {status}
-                </div>
-              )}
+            <button
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              type="button"
+              onClick={() => {setRoom(true); setExistingRoom(false)}}
+            >
+              Create New Room
+            </button>
+          </div>
 
-              <input type = "text" value = {userName} placeholder='Enter UserName' onChange = {(e) => dispatch({type: "SET_USER", payload: e.target.value})}/>
+          {room && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={roomName}
+                  placeholder="Enter room name"
+                  onChange={(e) => setRoomName(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+                <button
+                  type="button"
+                  onClick={createNewRoom}
+                  className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                >
+                  Create Room
+                </button>
+              </div>
+            </div>
+          )}
 
-              <button className = "text-3xl" type = "button" onClick = {() => {setExistingRoom(true) ; setRoom(false)}}>Join Existing Room</button>
+          {existingRoom && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={code}
+                  placeholder="Enter room code"
+                  onChange={(e) => setCode(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+                <button
+                  type="button"
+                  onClick={JoinExistingRoom}
+                  className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                >
+                  Join Room
+                </button>
+              </div>
+            </div>
+          )}
 
-              <button className = "text-3xl" type = "button" onClick={() => {setRoom(true) ; setExistingRoom(false)}}>Create New Room</button>
+          {group && (
+            <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+                <input
+                  type="text"
+                  value={groupName}
+                  placeholder="Enter group name"
+                  onChange={(e) => dispatch({type: "SET_GROUP_NAME", payload: e.target.value})}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+                <button
+                  type="button"
+                  onClick={createNewGroup}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  Create Group
+                </button>
+              </div>
 
-              {room && 
-                <div>
-                  <input type = "text" value = {roomName} placeholder = "Enter roomName" onChange = {(e) => setRoomName(e.target.value)} />
+              <div>
+                <div className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-600">Groups in Room</div>
 
-                  <button type = "button" onClick = {createNewRoom}>Create Room</button> 
+                {allGroup.length === 0 && (
+                  <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-4 text-center text-sm text-slate-500">
+                    No groups in this room yet.
+                  </div>
+                )}
 
-                </div>
-              }
-
-              {existingRoom && 
-                <div>
-                  <input type = "text" value = {code} placeholder='Enter Room Code' onChange = {(e) => setCode(e.target.value)}/>
-
-                  <button type = "button" onClick = {JoinExistingRoom}>Join Room</button>
-
-                </div>
-              }
-
-              {group && 
-                <div>
- 
-                  <input type = "text" value = {groupName} placeholder = "Enter GroupName" onChange = {(e) => dispatch({type: "SET_GROUP_NAME", payload: e.target.value})} />
-
-                  <button type = "button" onClick = {createNewGroup}>Create Group</button>
-
-                  <div className = "text-3xl">All the groups currently in the room</div>
-
-                  {allGroup.length == 0 && <div className = "text-2xl"> No group in the room </div>}
-
-                  {allGroup.length != 0 && 
-                    <div>
-                      {allGroup.map((group) => (
-
-                        <div key = {`${group.roomCode}-${group.name}`} className = "border p-2 mb-2"> 
-                          <p className = "font-bold">{group.name}</p>
-                          <p>Users : {group.users.length}</p>
-
-                          {group.users && group.users.length > 0 && (
-                            <ul className="list-disc ml-4">
-                              {group.users.map((user, idx) => (
-                                <li key={user.id || idx}>{user.name}</li>   
-                              ))}
-                            </ul>
-                          )}
-
-                          <button type = "button" onClick = {() => handleGroupJoin(group.name)}>Join this Group</button>
-
+                {allGroup.length !== 0 && (
+                  <div className="space-y-2">
+                    {allGroup.map((group) => (
+                      <div key={`${group.roomCode}-${group.name}`} className="rounded-lg border border-slate-200 bg-white p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-base font-bold text-slate-800">{group.name}</p>
+                            <p className="text-xs text-slate-500">Users: {group.users.length}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleGroupJoin(group.name)}
+                            className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+                          >
+                            Join Group
+                          </button>
                         </div>
-                      ))}
-                     </div>
-                  }
-                  
-                </div>
-              }
-          </form>
-        </div>
-        
-        </div>
+
+                        {group.users && group.users.length > 0 && (
+                          <ul className="mt-2 flex flex-wrap gap-2">
+                            {group.users.map((user, idx) => (
+                              <li key={user.id || idx} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                {user.name}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </form>
+      </div>
     </div>
   )
 }

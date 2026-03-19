@@ -1,40 +1,48 @@
 import React, { useState } from 'react'
 import { useGroupContext } from '../context/GroupContext'
 import { useSocket } from '../context/SocketContext';
+import { emitGuessSubmit, offGuessResult, onGuessResult } from '../services/Socket';
 
 const GuessPanel = () => {
 
-  const {state,dispatch} = useGroupContext();
-  const {currentWord,groups} = state;
+  const {state} = useGroupContext();
+  const {currentWord, groups} = state;
 
   const { state: socketState} = useSocket();
-  const { groupIndex } = socketState;
+  const { groupIndex, roomCode } = socketState;
 
   const [currGuess,setGuess] = useState("");
+  const [status, setStatus] = useState("");
+
+  React.useEffect(() => {
+    const handleGuessResult = ({ correct }) => {
+      setStatus(correct ? "Correct guess!" : "Wrong guess");
+    };
+
+    onGuessResult(handleGuessResult);
+
+    return () => {
+      offGuessResult(handleGuessResult);
+    };
+  }, []);
 
   const handleGuess = () => {
 
       const guess = currGuess.trim().toLowerCase();
-      const word = (currentWord || '').trim().toLowerCase();
-
       if (!guess) return;
 
-      if (guess === word) {
-
-        const myTeamIdx = Number(groupIndex);
-
-        if (groupIndex !== '' && groups[myTeamIdx]?.[1] === "Guessing") {
-
-          const curr = groups[myTeamIdx][0];
-          const scoreAction = myTeamIdx === 0 ? "SET_TEAM1_SCORE" : "SET_TEAM2_SCORE";
-          const myStatus   = myTeamIdx === 0 ? "SET_TEAM1_STATUS" : "SET_TEAM2_STATUS";
-          const otherStatus = myTeamIdx === 0 ? "SET_TEAM2_STATUS" : "SET_TEAM1_STATUS";
-
-          dispatch({type: scoreAction,  payload: curr + 30});
-          dispatch({type: myStatus,     payload: "Drawing"});
-          dispatch({type: otherStatus,  payload: "Guessing"});
-        }
+      const myTeamIdx = Number(groupIndex);
+      if (!roomCode || !Number.isInteger(myTeamIdx) || myTeamIdx < 0) {
+        setStatus("Join a team first");
+        return;
       }
+
+      if (groups?.[myTeamIdx]?.[1] !== "Guessing") {
+        setStatus("Only guessing team can submit now");
+        return;
+      }
+
+      emitGuessSubmit({ roomCode, guess, groupIndex: myTeamIdx });
 
       setGuess("");
     
@@ -57,7 +65,7 @@ const GuessPanel = () => {
                 </button>
             </div>
             <div className="mt-4 text-xs font-semibold text-slate-500">GUESSES</div>
-            <div className="mt-2 h-8 rounded-lg border border-slate-200" />
+            <div className="mt-2 h-8 rounded-lg border border-slate-200 px-2 py-1 text-sm text-slate-700">{status}</div>
         </div>
     </div>
   )

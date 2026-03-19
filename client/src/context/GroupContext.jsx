@@ -1,5 +1,7 @@
-import { createContext, useContext, useMemo, useReducer, useRef } from "react";
+import { createContext, useContext, useEffect, useMemo, useReducer } from "react";
 import { useSettings } from "./RoomSettingContext";
+import { useSocket } from "./SocketContext";
+import { emitGameStart, emitGameStateRequest, offGameState, onGameState } from "../services/Socket";
 
 const groupContext = createContext();
 
@@ -27,6 +29,13 @@ function reducer(state,action){
             return {...state,currentWord : action.payload};
         case "SET_TURN_END":
             return {...state,turnsEndAt: action.payload};
+        case "SET_GAME_STATE":
+            return {
+                ...state,
+                groups: action.payload.groups || state.groups,
+                currentWord: action.payload.currentWord || "",
+                turnsEndAt: action.payload.turnsEndAt || 0,
+            };
         default:
             return state;
     }
@@ -53,78 +62,60 @@ const getWord = (settings) => {
     }
 }
 
-const shuffle = (arr) => {
-
-    const a = [...arr];
-
-    const len = a.length;
-
-    for (let idx = len-1 ; idx >= 0 ; idx --){
-
-        const jdx = Math.floor(Math.random() * (idx+1));
-
-        [a[idx],a[jdx]] = [a[jdx],a[idx]];
-
-    }
-
-    return a;
-
-}
-
 const GroupContext = ({children}) => {
 
     const {state : settings} = useSettings();
+    const { state: socketState } = useSocket();
+    const { roomCode } = socketState;
 
     const [state,dispatch] = useReducer(reducer,initialState);
 
-    const bagRef = useRef([]);
-
-    const usedRef = useRef([]);
-
-    const nextWord = () => {
-
-        if (bagRef.current.length === 0){
-
-            const pool = getWord(settings);
-
-            bagRef.current = shuffle(pool);
-            usedRef.current = [];
-
+    const startTurn = (roomCodeOverride) => {
+        const effectiveRoomCode = roomCodeOverride || roomCode;
+        if (!effectiveRoomCode) {
+            return { ok: false, reason: "Room code missing" };
         }
+        const wordPool = getWord(settings) || [];
+        if (!Array.isArray(wordPool) || wordPool.length === 0) {
+            return { ok: false, reason: "Word pool is empty" };
+        }
+        const turnMs = Number(settings.time) * 60 * 1000;
 
-        const word = bagRef.current.pop();
-        usedRef.current.push(word);
+        emitGameStart({
+            roomCode: effectiveRoomCode,
+            wordPool,
+            turnMs,
+            groups: state.groups,
+        });
 
-        return word;
-    };
+        // Pull latest authoritative game state right after starting.
+        emitGameStateRequest({ roomCode: effectiveRoomCode });
 
-    const startTurn = () => {
-
-        bagRef.current = [];
-        usedRef.current = [];
-
-        const word = nextWord();
-
-        dispatch({type : "SET_CURRENT_WORD",payload : word});
-        dispatch({type : "SET_TURN_END", payload : Date.now() + (Number(settings.time) * 60 * 1000)});
+        return { ok: true };
 
     }
 
     const nextTurn = () => {
-
-        const curr = (state.groups[0][1] === "Drawing") ? "Guessing" : "Drawing";
-
-        dispatch({type : "SET_TEAM1_STATUS", payload : curr});
-
-        const curr2 = (state.groups[1][1] === "Drawing") ? "Guessing" : "Drawing";
-
-        dispatch({type : "SET_TEAM2_STATUS", payload : curr2});
-
-        startTurn();
-
+        // Server controls turn transitions.
     }
 
-    const value = useMemo(() => ({state,dispatch,startTurn,nextTurn}),[state]);
+    useEffect(() => {
+        const handleGameState = (payload) => {
+            dispatch({ type: "SET_GAME_STATE", payload });
+        };
+
+        onGameState(handleGameState);
+
+        if (roomCode) {
+            emitGameStateRequest({ roomCode });
+        }
+
+        return () => {
+            offGameState(handleGameState);
+        };
+    }, [roomCode]);
+
+    const value = useMemo(() => ({state,dispatch,startTurn,nextTurn}),[state, roomCode, settings]);
 
     return(
 

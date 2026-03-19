@@ -99,6 +99,10 @@ export const getAllgroup = (callback) => {
 
 }
 
+export const offAllgroup = (callback) => {
+  socket.off("getAllGroup", callback);
+}
+
 export const createGroup = async ({roomCode,userName,groupName}) => {
 
   await ensureConnected();
@@ -159,6 +163,82 @@ export const groupJoinMessage = (callback) => {
   console.log("Getting group join message with socket ID:", socket.id);
   socket.on("User Joined Group",callback);
   
+}
+
+export const emitCanvasDrawStart = ({ roomCode, x, y, color, size }) => {
+  socket.emit("canvas:draw-start", { roomCode, x, y, color, size });
+}
+
+export const emitCanvasDrawLine = ({ roomCode, x1, y1, x2, y2, color, size }) => {
+  socket.emit("canvas:draw-line", { roomCode, x1, y1, x2, y2, color, size });
+}
+
+export const emitCanvasDrawEnd = ({ roomCode }) => {
+  socket.emit("canvas:draw-end", { roomCode });
+}
+
+export const emitCanvasClear = ({ roomCode }) => {
+  socket.emit("canvas:clear", { roomCode });
+}
+
+export const onCanvasDrawStart = (callback) => {
+  socket.on("canvas:draw-start", callback);
+}
+
+export const onCanvasDrawLine = (callback) => {
+  socket.on("canvas:draw-line", callback);
+}
+
+export const onCanvasDrawEnd = (callback) => {
+  socket.on("canvas:draw-end", callback);
+}
+
+export const onCanvasClear = (callback) => {
+  socket.on("canvas:clear", callback);
+}
+
+export const offCanvasDrawStart = (callback) => {
+  socket.off("canvas:draw-start", callback);
+}
+
+export const offCanvasDrawLine = (callback) => {
+  socket.off("canvas:draw-line", callback);
+}
+
+export const offCanvasDrawEnd = (callback) => {
+  socket.off("canvas:draw-end", callback);
+}
+
+export const offCanvasClear = (callback) => {
+  socket.off("canvas:clear", callback);
+}
+
+export const emitGameStart = ({ roomCode, wordPool, turnMs, groups }) => {
+  socket.emit("game:start", { roomCode, wordPool, turnMs, groups });
+}
+
+export const emitGameStateRequest = ({ roomCode }) => {
+  socket.emit("game:request-state", { roomCode });
+}
+
+export const onGameState = (callback) => {
+  socket.on("game:state", callback);
+}
+
+export const offGameState = (callback) => {
+  socket.off("game:state", callback);
+}
+
+export const emitGuessSubmit = ({ roomCode, guess, groupIndex }) => {
+  socket.emit("game:submit-guess", { roomCode, guess, groupIndex });
+}
+
+export const onGuessResult = (callback) => {
+  socket.on("game:guess-result", callback);
+}
+
+export const offGuessResult = (callback) => {
+  socket.off("game:guess-result", callback);
 }
 
 export default socket;

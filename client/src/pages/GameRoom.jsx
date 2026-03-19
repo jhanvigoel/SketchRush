@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import Canvas from '../components/Canvas'
 import TeamPlayers from '../components/TeamPlayers'
-import { callAllGroup, getAllgroup, groupCreateMessage, groupJoinMessage } from '../services/Socket'
+import { callAllGroup, getAllgroup, groupCreateMessage, groupJoinMessage, offAllgroup } from '../services/Socket'
 import { useSocket } from '../context/SocketContext'
 import { useLocation } from 'react-router-dom'
 import RoomNavbar from '../components/RoomNavbar'
@@ -12,53 +12,78 @@ import { useGroupContext } from '../context/GroupContext'
 const GameRoom = () => {
 
   const { state, dispatch } = useSocket();
-  const { socket, groups, groupName, userName , roomCode } = state;
+  const { socket, groups, groupName, userName, roomCode, groupIndex } = state;
   const location = useLocation();
   const roomName = location.state?.roomName;
-  const { startTurn } = useGroupContext();
-  const [gameStarted, setGameStarted] = useState(false);
+  const groupsRoomCode = groups?.[0]?.roomCode || groups?.[1]?.roomCode || "";
+  const effectiveRoomCode = roomCode || roomName || groupsRoomCode || "";
+  const { state: groupState, startTurn } = useGroupContext();
+  const gameStarted = groupState.turnsEndAt > Date.now();
+
+  const handleStartGame = () => {
+    if (!effectiveRoomCode) {
+      alert("Room is not ready yet. Please wait a second and try again.");
+      return;
+    }
+
+    const result = startTurn(effectiveRoomCode);
+    if (!result?.ok) {
+      alert(result?.reason || "Could not start game");
+    }
+  };
 
   useEffect(() => {
+    if (!roomCode && roomName) {
+      dispatch({ type: "SET_ROOM", payload: roomName });
+    }
+  }, [roomCode, roomName, dispatch]);
+
+  useEffect(() => {
+    if (!userName || !Array.isArray(groups) || groups.length === 0) return;
+
+    const idx = groups.findIndex((g) => (g.users || []).some((u) => u.name === userName));
+    if (idx >= 0 && String(idx) !== String(groupIndex)) {
+      dispatch({ type: "SET_GROUP_INDEX", payload: String(idx) });
+    }
+  }, [groups, userName, groupIndex, dispatch]);
+
+  useEffect(() => {
+    if (!effectiveRoomCode) return;
+
+    const handleAllGroups = (data) => {
+      dispatch({type : "SET_GROUPS", payload : data.groups || []});
+    };
 
     const handleJoinMessage = (data) => {
       
       alert(`User ${data.userName} joined Group ${data.groupName}`);
 
-      callAllGroup({roomCode});
-
-      getAllgroup((data) => {
-
-        dispatch({type : "SET_GROUPS",payload : data.groups});
-
-      })
+      callAllGroup({roomCode: effectiveRoomCode});
       
     };
 
     const handleCreateMessage = (data) => {
 
       alert(`User ${data.userName} created Group ${data.groupName}`);
+      callAllGroup({roomCode: effectiveRoomCode});
 
     };
 
     groupJoinMessage(handleJoinMessage);
     groupCreateMessage(handleCreateMessage);
+    getAllgroup(handleAllGroups);
 
-    callAllGroup({roomCode});
-
-    getAllgroup((data) => {
-
-      dispatch({type : "SET_GROUPS",payload : data.groups});
-        
-    })
+    callAllGroup({roomCode: effectiveRoomCode});
 
     return () => {
      
       socket.off("User Joined Group", handleJoinMessage);
       socket.off("Group Created", handleCreateMessage);
+      offAllgroup(handleAllGroups);
 
     };
 
-  }, [socket, dispatch]); 
+  }, [socket, dispatch, effectiveRoomCode]); 
 
   const team1 = groups[0] || { name: "Team1", users: [] };
   const team2 = groups[1] || { name: "Team2", users: [] };
@@ -68,7 +93,7 @@ const GameRoom = () => {
 
       <div className = "mx-auto max-w-10xl">
 
-        <RoomNavbar RoomName={roomCode}/>
+        <RoomNavbar RoomName={effectiveRoomCode}/>
         
 
           <div className = "mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr_260px]">
@@ -85,7 +110,8 @@ const GameRoom = () => {
                     <div className="text-2xl font-extrabold text-white mb-2">Ready to Play?</div>
                     <p className="text-indigo-100 text-sm mb-6">Click below to kick off the first round!</p>
                     <button
-                      onClick={() => { startTurn(); setGameStarted(true); }}
+                      type="button"
+                      onClick={handleStartGame}
                       className="rounded-xl bg-white px-10 py-3 text-indigo-600 font-extrabold text-lg shadow-lg hover:bg-indigo-50 active:scale-95 transition-all"
                     >
                       Start Game
