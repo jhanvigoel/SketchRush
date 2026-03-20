@@ -8,14 +8,34 @@ import 'dotenv/config'
 
 const App = express()
 
-App.use(cors({ origin: process.env.CLIENT_ORIGIN, credentials: true }));
+const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const corsOrigin = (origin, callback) => {
+    
+    if (!origin) {
+        callback(null, true);
+        return;
+    }
+
+    if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+    }
+
+    callback(new Error(`Not allowed by CORS: ${origin}`));
+};
+
+App.use(cors({ origin: corsOrigin, credentials: true }));
 
 
 const server = http.createServer(App);
 
 const io = new Server(server , {
     cors: {
-        origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
+        origin: allowedOrigins,
         methods: ["GET", "POST"], 
         credentials : true
     }
