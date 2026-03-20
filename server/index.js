@@ -13,14 +13,24 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-const corsOrigin = (origin, callback) => {
-    
-    if (!origin) {
-        callback(null, true);
-        return;
-    }
+const isAllowedOrigin = (origin) => {
+    if (!origin) return true;
 
     if (allowedOrigins.includes(origin)) {
+        return true;
+    }
+
+    // Allow Vercel deployment and preview domains.
+    if (/^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin)) {
+        return true;
+    }
+
+    return false;
+};
+
+const corsOrigin = (origin, callback) => {
+    
+    if (isAllowedOrigin(origin)) {
         callback(null, true);
         return;
     }
@@ -35,7 +45,7 @@ const server = http.createServer(App);
 
 const io = new Server(server , {
     cors: {
-        origin: allowedOrigins,
+        origin: corsOrigin,
         methods: ["GET", "POST"], 
         credentials : true
     }
