@@ -8,20 +8,29 @@ import 'dotenv/config'
 
 const App = express()
 
+App.get('/health', (_req, res) => {
+    res.status(200).json({ ok: true, service: 'sketchrush-server' });
+});
+
 const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-const isAllowedOrigin = (origin) => {
-    if (!origin) return true;
+const normalizeOrigin = (origin) => String(origin || '').trim().replace(/\/+$/, '');
 
-    if (allowedOrigins.includes(origin)) {
+const normalizedAllowedOrigins = allowedOrigins.map(normalizeOrigin);
+
+const isAllowedOrigin = (origin) => {
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (!normalizedOrigin) return true;
+
+    if (normalizedAllowedOrigins.includes(normalizedOrigin)) {
         return true;
     }
 
     // Allow Vercel deployment and preview domains.
-    if (/^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin)) {
+    if (/^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(normalizedOrigin)) {
         return true;
     }
 

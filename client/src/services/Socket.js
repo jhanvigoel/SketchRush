@@ -1,9 +1,6 @@
 import { io } from "socket.io-client";
 
 const socket = io(import.meta.env.VITE_URL, {
-  transports: ["websocket"],
-  upgrade: false,
-  withCredentials: false,
   reconnection: true,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
