@@ -6,6 +6,8 @@ Real-time multiplayer drawing and guessing game built with a React + Vite client
 
 The home screen is a lightweight lobby where players enter a username, create a room, or join an existing room before moving into team selection and game play.
 
+![Home](client/public/Home.png)
+
 ## Features
 
 Core experience: A fast, social drawing game where players gather in a room, split into teams, and play through shared rounds. The flow keeps the lobby simple so users can get into the game quickly.
@@ -15,6 +17,8 @@ Room creation & joining: Players can create a new room or join an existing one w
 Team lobby: Once connected, players can create or join groups inside the room and see the current team roster update in real time.
 
 Canvas gameplay: The shared canvas lets the active player draw while everyone else watches and guesses. Draw start, line, end, and clear events are synchronized through Socket.IO.
+
+![Canvas](client/public/Canvas.png)
 
 Guessing panel: Players submit guesses from the game room, and the UI listens for server feedback so rounds stay interactive.
 
@@ -98,18 +102,3 @@ npm run dev
 Client: http://localhost:5173
 
 API / Socket server: http://localhost:3000
-
-## Screenshots
-
-Join Room: Clean lobby form for entering a username and room code or creating a new room.
-
-Team Lobby: Real-time team selection view that shows player membership as the room fills up.
-
-Game Room: Main play area with the canvas centered between team lists and the guess panel.
-
-Canvas: Shared drawing board with synchronized drawing events for all connected players.
-
-## Notes
-
-- The server exposes a `/health` endpoint for quick connectivity checks.
-- The Socket.IO server allows configured frontend origins and Vercel preview domains.
