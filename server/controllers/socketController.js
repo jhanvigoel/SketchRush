@@ -136,12 +136,16 @@ const buildRoomSnapshot = (roomCode, viewerSessionId = "") => {
             connected: player.connected,
         }));
 
+        const status = room.game.phase === "lobby"
+            ? (users.length > 0 ? "Ready" : "Waiting")
+            : (idx === room.game.currentTeamIndex ? "Drawing" : "Guessing");
+
         return {
             name: team.name,
             score: Array.isArray(room.game?.groups) && Array.isArray(room.game.groups[idx])
                 ? room.game.groups[idx][0]
                 : team.score || 0,
-            status: users.length > 0 ? "Ready" : "Waiting",
+            status,
             users,
             players: users,
         };
@@ -278,6 +282,7 @@ const scheduleAdvance = (io, roomCode) => {
         const curr = roomGames.get(roomCode);
         if (!curr) return;
 
+        curr.currentTeamIndex = curr.currentTeamIndex === 0 ? 1 : 0;
         curr.groups = curr.groups.map(([score, role]) => [score, role === "Drawing" ? "Guessing" : "Drawing"]);
         curr.currentWord = pickWord(curr);
         curr.turnsEndAt = Date.now() + curr.turnMs;
@@ -466,6 +471,7 @@ export const handleConnection = (io,socket) => {
         game.currentWord = pickWord(game);
         game.turnsEndAt = Date.now() + game.turnMs;
         game.phase = "playing";
+        game.currentTeamIndex = game.currentTeamIndex === 0 ? 1 : 0;
         roomGames.set(roomCode, game);
 
         syncGameToRoom(roomCode, game);
@@ -503,6 +509,7 @@ export const handleConnection = (io,socket) => {
         }
 
         game.groups[idx][0] += 30;
+        game.currentTeamIndex = game.currentTeamIndex === 0 ? 1 : 0;
         game.groups = game.groups.map(([score, role]) => [score, role === "Drawing" ? "Guessing" : "Drawing"]);
         game.currentWord = pickWord(game);
         game.turnsEndAt = Date.now() + game.turnMs;
