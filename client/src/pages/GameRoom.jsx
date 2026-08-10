@@ -48,6 +48,23 @@ const GameRoom = () => {
   }, [groups, userName, groupIndex, dispatch]);
 
   useEffect(() => {
+    const handleSnapshot = (data) => {
+      if (!data.ok) return;
+      dispatch({ type: "SET_GROUPS", payload: data.teams });
+      dispatch({ type: "SET_ROOM", payload: data.roomCode });
+      if (data.yourTeamIndex !== undefined && data.yourTeamIndex !== null) {
+        dispatch({ type: "SET_GROUP_INDEX", payload: String(data.yourTeamIndex) });
+      }
+      if (data.yourGroupName) {
+        dispatch({ type: "SET_GROUP_NAME", payload: data.yourGroupName });
+      }
+    };
+
+    socket.on("room:snapshot", handleSnapshot);
+    return () => socket.off("room:snapshot", handleSnapshot);
+  }, [socket, dispatch]);
+
+  useEffect(() => {
     if (!effectiveRoomCode) return;
 
     const handleAllGroups = (data) => {
@@ -85,8 +102,8 @@ const GameRoom = () => {
 
   }, [socket, dispatch, effectiveRoomCode]); 
 
-  const team1 = groups[0] || { name: "Team1", users: [] };
-  const team2 = groups[1] || { name: "Team2", users: [] };
+  const team1 = groups[0] || { name: "Team1", users: [], score: 0 };
+  const team2 = groups[1] || { name: "Team2", users: [], score: 0 };
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-6">
@@ -97,7 +114,7 @@ const GameRoom = () => {
         
 
           <div className = "mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr_260px]">
-            <TeamPlayers teamName={team1.name} players={team1.users} index = "0"/>
+            <TeamPlayers team={team1} index = "0"/>
 
             <div className = "space-y-6">
               <WordBox />
@@ -130,7 +147,7 @@ const GameRoom = () => {
             <div className = "space-y-6">
 
               <GuessPanel />
-              <TeamPlayers teamName = {team2.name} players = {team2.users} index = "1" />
+              <TeamPlayers team = {team2} index = "1" />
             </div>
 
           </div>

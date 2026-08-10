@@ -6,7 +6,7 @@ import { emitGuessSubmit, offGuessResult, onGuessResult } from '../services/Sock
 const GuessPanel = () => {
 
   const {state} = useGroupContext();
-  const {currentWord, groups} = state;
+  const {groups, currentWordVisible} = state;
 
   const { state: socketState} = useSocket();
   const { groupIndex, roomCode } = socketState;
@@ -52,18 +52,28 @@ const GuessPanel = () => {
   return (
     <div>
         <div className = "rounded-2xl bg-white p-5 shadow-lg">
-        <div className="text-sm font-bold text-slate-900">SUBMIT ANSWER</div>
-            <div className="mt-3 flex gap-3">
-                <input
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                placeholder="Type guess..."
-                value = {currGuess}
-                onChange = {(e) => setGuess(e.target.value)}
-                />
-                <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white" onClick={handleGuess}>
-                Send
-                </button>
-            </div>
+        <div className="text-sm font-bold text-slate-900">
+          {currentWordVisible ? "YOU ARE DRAWING" : "SUBMIT ANSWER"}
+        </div>
+
+            {currentWordVisible ? (
+              <div className="mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
+                Wait for the guessing team to submit their answer.
+              </div>
+            ) : (
+              <div className="mt-3 flex gap-3">
+                  <input
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="Type guess..."
+                  value = {currGuess}
+                  onChange = {(e) => setGuess(e.target.value)}
+                  />
+                  <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white" onClick={handleGuess}>
+                  Send
+                  </button>
+              </div>
+            )}
+
             <div className="mt-4 text-xs font-semibold text-slate-500">GUESSES</div>
             <div className="mt-2 h-8 rounded-lg border border-slate-200 px-2 py-1 text-sm text-slate-700">{status}</div>
         </div>

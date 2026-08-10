@@ -46,20 +46,20 @@ const ensureConnected = () => {
   });
 };
 
-export const createRoom = async ({roomCode,userName}) => {
+export const createRoom = async ({roomCode,userName,sessionId}) => {
 
   await ensureConnected();
 
   console.log("Creating room with socket ID:", socket.id);
-  socket.emit("Create Room", roomCode,userName);
+  socket.emit("Create Room", roomCode, userName, sessionId);
 }
 
-export const JoinRoom = async ({roomCode,userName}) => {
+export const JoinRoom = async ({roomCode,userName,sessionId}) => {
 
   await ensureConnected();
 
   console.log("Joining room with socket ID:", socket.id);
-  socket.emit("Join Room",roomCode,userName);
+  socket.emit("Join Room", roomCode, userName, sessionId);
 }
 
 export const onRoomCreated = (callback) => {
@@ -104,24 +104,24 @@ export const offAllgroup = (callback) => {
   socket.off("getAllGroup", callback);
 }
 
-export const createGroup = async ({roomCode,userName,groupName}) => {
+export const createGroup = async ({roomCode,userName,groupName,sessionId}) => {
 
   await ensureConnected();
 
   console.log("Creating group with socket ID:", socket.id);
 
-  socket.emit("createGroup",roomCode,userName,groupName);
+  socket.emit("createGroup", roomCode, userName, groupName, sessionId);
 
 }
 
-export const joinGroup = async ({roomCode,userName,groupName}) => {
+export const joinGroup = async ({roomCode,userName,groupName,sessionId}) => {
 
   await ensureConnected();
 
   console.log("Joining group with socket ID:", socket.id);
   console.log("Details:", {roomCode, userName, groupName, socketId: socket.id});
 
-  socket.emit("joinGroup",roomCode,userName,groupName);
+  socket.emit("joinGroup", roomCode, userName, groupName, sessionId);
 
 }
 
@@ -228,6 +228,14 @@ export const onGameState = (callback) => {
 
 export const offGameState = (callback) => {
   socket.off("game:state", callback);
+}
+
+export const onRoomSnapshot = (callback) => {
+  socket.on("room:snapshot", callback);
+}
+
+export const offRoomSnapshot = (callback) => {
+  socket.off("room:snapshot", callback);
 }
 
 export const emitGuessSubmit = ({ roomCode, guess, groupIndex }) => {

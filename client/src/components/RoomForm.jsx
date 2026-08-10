@@ -6,7 +6,7 @@ import { useSocket } from '../context/SocketContext';
 const RoomForm = () => {
 
   const {state, dispatch} = useSocket();
-  const {socket, userName, roomCode: currRoom, groupName, groups: allGroup} = state;
+  const {socket, sessionId, userName, roomCode: currRoom, groupName, groups: allGroup} = state;
 
   const [code,setCode] = useState("");
   const [room,setRoom] = useState(false);
@@ -30,7 +30,7 @@ const RoomForm = () => {
       const groups = groupData?.groups || [];
       dispatch({ type: "SET_GROUPS", payload: groups });
 
-      let idx = groups.findIndex((g) => (g.users || []).some((u) => u.id === socket.id));
+      let idx = groups.findIndex((g) => (g.users || []).some((u) => u.id === sessionId));
       if (idx < 0) {
         idx = groups.findIndex((g) => g.name === targetGroupName);
       }
@@ -49,7 +49,7 @@ const RoomForm = () => {
   const createNewRoom = async (e) => {
 
     e.preventDefault();
-    await createRoom({roomCode: roomName, userName});
+    await createRoom({roomCode: roomName, userName, sessionId});
     setRoom(false);
 
   };
@@ -57,7 +57,7 @@ const RoomForm = () => {
   const JoinExistingRoom = async (e) => {
 
     e.preventDefault();
-    await JoinRoom({roomCode: code, userName});
+    await JoinRoom({roomCode: code, userName, sessionId});
     setExistingRoom(false);
 
   }
@@ -66,14 +66,14 @@ const RoomForm = () => {
 
     e.preventDefault();
   
-    await createGroup({roomCode: currRoom,groupName,userName});
+    await createGroup({roomCode: currRoom,groupName,userName,sessionId});
 
   }
 
   const handleGroupJoin = async (name) => {
 
     console.log("Joining group:", name, "in room:", currRoom, "as user:", userName);
-    await joinGroup({roomCode : currRoom,groupName: name,userName});
+    await joinGroup({roomCode : currRoom,groupName: name,userName,sessionId});
 
   }
 

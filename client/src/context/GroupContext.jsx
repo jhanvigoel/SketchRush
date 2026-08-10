@@ -1,30 +1,22 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from "react";
 import { useSettings } from "./RoomSettingContext";
 import { useSocket } from "./SocketContext";
-import { emitGameStart, emitGameStateRequest, offGameState, onGameState } from "../services/Socket";
+import { emitGameStart, emitGameStateRequest, offGameState, offRoomSnapshot, onGameState, onRoomSnapshot } from "../services/Socket";
 
 const groupContext = createContext();
 
 const initialState = {
-
-    groups : [[0,"Drawing"],[0,"Guessing"]],
     currentWord : "",
     turnsEndAt : 0,
+    currentWordVisible : false,
+    currentTeamIndex : 0,
+    phase : "lobby",
 
 }
 
 function reducer(state,action){
 
     switch(action.type){
-
-        case "SET_TEAM1_STATUS":
-            return {...state,groups : [[state.groups[0][0],action.payload],state.groups[1]]};
-        case "SET_TEAM1_SCORE":
-            return {...state,groups : [[action.payload,state.groups[0][1]],state.groups[1]]};
-        case "SET_TEAM2_SCORE":
-            return {...state,groups : [state.groups[0],[action.payload,state.groups[1][1]]]};
-        case "SET_TEAM2_STATUS":
-            return {...state,groups: [state.groups[0],[state.groups[1][0],action.payload]]};
         case "SET_CURRENT_WORD":
             return {...state,currentWord : action.payload};
         case "SET_TURN_END":
@@ -32,9 +24,11 @@ function reducer(state,action){
         case "SET_GAME_STATE":
             return {
                 ...state,
-                groups: action.payload.groups || state.groups,
                 currentWord: action.payload.currentWord || "",
                 turnsEndAt: action.payload.turnsEndAt || 0,
+                currentWordVisible: action.payload.currentWordVisible ?? false,
+                currentTeamIndex: action.payload.currentTeamIndex ?? 0,
+                phase: action.payload.phase || "playing",
             };
         default:
             return state;
@@ -66,9 +60,19 @@ const GroupContext = ({children}) => {
 
     const {state : settings} = useSettings();
     const { state: socketState } = useSocket();
-    const { roomCode } = socketState;
+    const { roomCode, groups: roomTeams } = socketState;
 
     const [state,dispatch] = useReducer(reducer,initialState);
+
+    const toGameGroups = (teams = []) => {
+        const first = teams[0] || {};
+        const second = teams[1] || {};
+
+        return [
+            [Number(first.score) || 0, "Drawing"],
+            [Number(second.score) || 0, "Guessing"],
+        ];
+    };
 
     const startTurn = (roomCodeOverride) => {
         const effectiveRoomCode = roomCodeOverride || roomCode;
@@ -85,7 +89,7 @@ const GroupContext = ({children}) => {
             roomCode: effectiveRoomCode,
             wordPool,
             turnMs,
-            groups: state.groups,
+            groups: toGameGroups(roomTeams),
         });
 
         // Pull latest authoritative game state right after starting.
@@ -104,7 +108,23 @@ const GroupContext = ({children}) => {
             dispatch({ type: "SET_GAME_STATE", payload });
         };
 
+        const handleRoomSnapshot = (payload) => {
+            if (!payload?.ok) return;
+
+            dispatch({
+                type: "SET_GAME_STATE",
+                payload: {
+                    currentWord: payload.game?.currentWord || "",
+                    turnsEndAt: payload.game?.turnsEndAt || 0,
+                    currentWordVisible: payload.game?.currentWordVisible ?? false,
+                    currentTeamIndex: payload.game?.currentTeamIndex ?? 0,
+                    phase: payload.game?.phase || "lobby",
+                },
+            });
+        };
+
         onGameState(handleGameState);
+        onRoomSnapshot(handleRoomSnapshot);
 
         if (roomCode) {
             emitGameStateRequest({ roomCode });
@@ -112,6 +132,7 @@ const GroupContext = ({children}) => {
 
         return () => {
             offGameState(handleGameState);
+            offRoomSnapshot(handleRoomSnapshot);
         };
     }, [roomCode]);
 

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { createContext } from 'react';
 import socket from '../services/Socket';
 import { useReducer } from 'react';
@@ -7,9 +7,26 @@ import { useContext } from 'react';
 
 const socketStateContext = createContext();
 
+//if already player in the game room and got disconnected and reconnect so will
+//as a same person, not as a stranger returning
+const getSessionId = () => {
+
+  const saved = localStorage.getItem("sessionId");
+
+  if (saved) return saved;
+
+  const next = crypto.randomUUID();
+
+  localStorage.setItem("sessionId",next);
+
+  return next;
+
+}
+
 const initialState = {
 
     socket,
+    sessionId : getSessionId(),
     userName: "",
     roomCode: "",
     groupName: "",
@@ -40,6 +57,35 @@ function reducer(state,action) {
 const SocketContext = ({children}) => {
 
   const [state,dispatch] = useReducer(reducer,initialState);
+
+  useEffect(() => {
+
+    if (!state.socket || !state.sessionId) return;
+
+    const resume = () => {
+
+      state.socket.emit("session:resume",{
+        sessionId : state.sessionId,
+        userName: state.userName,
+        roomCode : state.roomCode
+      });
+
+    }
+
+    if (state.socket.connected) {
+      resume();
+    }
+
+    state.socket.on("connect",resume);
+
+    return () => {
+
+      state.socket.off("connect",resume);
+
+    }
+
+  },[state.socket,state.sessionId,state.userName,state.roomCode]);
+
 
   const value = useMemo(() => ({state,dispatch}),[state]);
 

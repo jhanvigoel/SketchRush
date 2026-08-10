@@ -1,14 +1,12 @@
 import React from 'react'
-import { useGroupContext } from '../context/GroupContext'
 
-const TeamPlayers = ({teamName, players, index}) => {
-
-    const {state} = useGroupContext();
-    const {groups} = state;
+const TeamPlayers = ({team, index}) => {
 
     const teamIdx = Number(index);
-    const score = groups?.[teamIdx]?.[0] ?? 0;
-    const status = groups?.[teamIdx]?.[1] ?? 'Waiting';
+    const score = team?.score ?? 0;
+    const status = team?.status || 'Waiting';
+    const players = team?.users || team?.players || [];
+    const teamName = team?.name || `Team ${teamIdx + 1}`;
 
   return (
     <div>
@@ -22,7 +20,7 @@ const TeamPlayers = ({teamName, players, index}) => {
                 {players && players.length > 0 ? (
 
                     players.map((player) => (
-                        <li key = {player.id} className = "text-3xl">{player.name}</li>
+                        <li key = {player.id || player.sessionId || player.name} className = "text-3xl">{player.name}</li>
                     ))
                 ) : (
                     <li className = "text-6xl"> Waiting ..</li>
