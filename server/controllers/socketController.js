@@ -471,7 +471,7 @@ export const handleConnection = (io,socket) => {
         game.currentWord = pickWord(game);
         game.turnsEndAt = Date.now() + game.turnMs;
         game.phase = "playing";
-        game.currentTeamIndex = game.currentTeamIndex === 0 ? 1 : 0;
+        game.currentTeamIndex = 0;
         roomGames.set(roomCode, game);
 
         syncGameToRoom(roomCode, game);

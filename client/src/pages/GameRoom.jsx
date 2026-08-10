@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react'
 import Canvas from '../components/Canvas'
 import TeamPlayers from '../components/TeamPlayers'
-import { callAllGroup, getAllgroup, groupCreateMessage, groupJoinMessage, offAllgroup } from '../services/Socket'
 import { useSocket } from '../context/SocketContext'
 import { useLocation } from 'react-router-dom'
 import RoomNavbar from '../components/RoomNavbar'
@@ -63,44 +62,6 @@ const GameRoom = () => {
     socket.on("room:snapshot", handleSnapshot);
     return () => socket.off("room:snapshot", handleSnapshot);
   }, [socket, dispatch]);
-
-  useEffect(() => {
-    if (!effectiveRoomCode) return;
-
-    const handleAllGroups = (data) => {
-      dispatch({type : "SET_GROUPS", payload : data.groups || []});
-    };
-
-    const handleJoinMessage = (data) => {
-      
-      alert(`User ${data.userName} joined Group ${data.groupName}`);
-
-      callAllGroup({roomCode: effectiveRoomCode});
-      
-    };
-
-    const handleCreateMessage = (data) => {
-
-      alert(`User ${data.userName} created Group ${data.groupName}`);
-      callAllGroup({roomCode: effectiveRoomCode});
-
-    };
-
-    groupJoinMessage(handleJoinMessage);
-    groupCreateMessage(handleCreateMessage);
-    getAllgroup(handleAllGroups);
-
-    callAllGroup({roomCode: effectiveRoomCode});
-
-    return () => {
-     
-      socket.off("User Joined Group", handleJoinMessage);
-      socket.off("Group Created", handleCreateMessage);
-      offAllgroup(handleAllGroups);
-
-    };
-
-  }, [socket, dispatch, effectiveRoomCode]); 
 
   const team1 = groups[0] || { name: "Team1", users: [], score: 0 };
   const team2 = groups[1] || { name: "Team2", users: [], score: 0 };

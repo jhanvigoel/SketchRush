@@ -6,6 +6,7 @@ import { emitGameStart, emitGameStateRequest, offGameState, offRoomSnapshot, onG
 const groupContext = createContext();
 
 const initialState = {
+    groups: [[0, "Waiting"], [0, "Waiting"]],
     currentWord : "",
     turnsEndAt : 0,
     currentWordVisible : false,
@@ -24,6 +25,7 @@ function reducer(state,action){
         case "SET_GAME_STATE":
             return {
                 ...state,
+                groups: action.payload.groups || state.groups,
                 currentWord: action.payload.currentWord || "",
                 turnsEndAt: action.payload.turnsEndAt || 0,
                 currentWordVisible: action.payload.currentWordVisible ?? false,
@@ -114,6 +116,7 @@ const GroupContext = ({children}) => {
             dispatch({
                 type: "SET_GAME_STATE",
                 payload: {
+                    groups: payload.game?.groups,
                     currentWord: payload.game?.currentWord || "",
                     turnsEndAt: payload.game?.turnsEndAt || 0,
                     currentWordVisible: payload.game?.currentWordVisible ?? false,
