@@ -12,7 +12,9 @@ const initialState = {
     currentWordVisible : false,
     currentTeamIndex : 0,
     phase : "lobby",
-
+    winner: null,
+    roundLimit: 0,
+    roundsPlayed: 0,
 }
 
 function reducer(state,action){
@@ -31,6 +33,9 @@ function reducer(state,action){
                 currentWordVisible: action.payload.currentWordVisible ?? false,
                 currentTeamIndex: action.payload.currentTeamIndex ?? 0,
                 phase: action.payload.phase || "playing",
+                winner: action.payload.winner ?? null,
+                roundLimit: Number.isInteger(action.payload.roundLimit) ? action.payload.roundLimit : state.roundLimit,
+                roundsPlayed: Number.isInteger(action.payload.roundsPlayed) ? action.payload.roundsPlayed : state.roundsPlayed,
             };
         default:
             return state;
@@ -86,12 +91,14 @@ const GroupContext = ({children}) => {
             return { ok: false, reason: "Word pool is empty" };
         }
         const turnMs = Number(settings.time) * 60 * 1000;
+        const roundLimit = Number(settings.rounds) || 1;
 
         emitGameStart({
             roomCode: effectiveRoomCode,
             wordPool,
             turnMs,
             groups: toGameGroups(roomTeams),
+            roundLimit,
         });
 
         // Pull latest authoritative game state right after starting.
@@ -122,6 +129,9 @@ const GroupContext = ({children}) => {
                     currentWordVisible: payload.game?.currentWordVisible ?? false,
                     currentTeamIndex: payload.game?.currentTeamIndex ?? 0,
                     phase: payload.game?.phase || "lobby",
+                    winner: payload.game?.winner ?? null,
+                    roundLimit: payload.game?.roundLimit ?? 0,
+                    roundsPlayed: payload.game?.roundsPlayed ?? 0,
                 },
             });
         };

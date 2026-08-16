@@ -103,6 +103,9 @@ const syncGameToRoom = (roomCode, game) => {
         turnMs: game.turnMs || 60000,
         currentTeamIndex: Number.isInteger(game.currentTeamIndex) ? game.currentTeamIndex : 0,
         groups: game.groups || defaultTeamState(),
+        winner: game.winner || null,
+        roundsPlayed: Number.isInteger(game.roundsPlayed) ? game.roundsPlayed : 0,
+        roundLimit: Number.isInteger(game.roundLimit) ? game.roundLimit : 0,
     };
 
     room.teams.forEach((team, idx) => {
@@ -266,13 +269,63 @@ const toPublicState = (game) => ({
     phase: game.phase || "playing",
     currentTeamIndex: Number.isInteger(game.currentTeamIndex) ? game.currentTeamIndex : 0,
     currentWordVisible: false,
+    winner: game.winner || null,
+    roundsPlayed: Number.isInteger(game.roundsPlayed) ? game.roundsPlayed : 0,
+    roundLimit: Number.isInteger(game.roundLimit) ? game.roundLimit : 0,
+    gameOver: game.phase === "finished",
 });
 
 const normalizeText = (text) => String(text || "").trim().toLowerCase();
 
+const getMatchWinner = (game) => {
+    const entries = Array.isArray(game.groups) ? game.groups : [];
+    const prepared = entries.map(([score = 0], idx) => ({
+        teamIndex: idx,
+        teamName: `Team ${idx + 1}`,
+        score: Number(score) || 0,
+    }));
+
+    if (prepared.length === 0) {
+        return { teamIndex: -1, teamName: "It's a tie", score: 0 };
+    }
+
+    const topScore = Math.max(...prepared.map((entry) => entry.score), 0);
+    const leaders = prepared.filter((entry) => entry.score === topScore);
+
+    if (leaders.length > 1) {
+        return { teamIndex: -1, teamName: "It's a tie", score: topScore };
+    }
+
+    const leader = leaders[0];
+    return { teamIndex: leader.teamIndex, teamName: leader.teamName, score: topScore };
+};
+
+const finishGame = (io, roomCode) => {
+    const game = roomGames.get(roomCode);
+    if (!game || game.phase === "finished") {
+        return;
+    }
+
+    if (roomTimers.has(roomCode)) {
+        clearTimeout(roomTimers.get(roomCode));
+        roomTimers.delete(roomCode);
+    }
+
+    game.phase = "finished";
+    game.currentWord = "";
+    game.currentWordVisible = false;
+    game.turnsEndAt = 0;
+    game.winner = getMatchWinner(game);
+
+    syncGameToRoom(roomCode, game);
+    io.to(roomCode).emit("game:state", toPublicState(game));
+    io.to(roomCode).emit("game:result", game.winner);
+    emitPersonalizedRoomSnapshots(io, roomCode);
+};
+
 const scheduleAdvance = (io, roomCode) => {
     const game = roomGames.get(roomCode);
-    if (!game) return;
+    if (!game || game.phase === "finished") return;
 
     if (roomTimers.has(roomCode)) {
         clearTimeout(roomTimers.get(roomCode));
@@ -280,13 +333,19 @@ const scheduleAdvance = (io, roomCode) => {
 
     const timeoutId = setTimeout(() => {
         const curr = roomGames.get(roomCode);
-        if (!curr) return;
+        if (!curr || curr.phase === "finished") return;
 
+        curr.roundsPlayed += 1;
         curr.currentTeamIndex = curr.currentTeamIndex === 0 ? 1 : 0;
         curr.groups = curr.groups.map(([score, role]) => [score, role === "Drawing" ? "Guessing" : "Drawing"]);
         curr.currentWord = pickWord(curr);
         curr.turnsEndAt = Date.now() + curr.turnMs;
         curr.phase = "playing";
+
+        if (curr.roundsPlayed >= curr.roundLimit) {
+            finishGame(io, roomCode);
+            return;
+        }
 
         syncGameToRoom(roomCode, curr);
         io.to(roomCode).emit("game:state", toPublicState(curr));
@@ -446,13 +505,15 @@ export const handleConnection = (io,socket) => {
         socket.to(roomCode).emit("canvas:clear");
     })
 
-    socket.on("game:start", ({ roomCode, wordPool, turnMs, groups }) => {
+    socket.on("game:start", ({ roomCode, wordPool, turnMs, groups, roundLimit }) => {
         if (!roomCode || !Array.isArray(wordPool) || wordPool.length === 0) {
             return;
         }
 
         const normalizedTurnMs = Number(turnMs);
         const safeTurnMs = Number.isFinite(normalizedTurnMs) && normalizedTurnMs > 1000 ? normalizedTurnMs : 60000;
+        const safeRoundLimit = Number(roundLimit);
+        const finalRoundLimit = Number.isFinite(safeRoundLimit) && safeRoundLimit > 0 ? safeRoundLimit : 1;
 
         const normalizedGroups = Array.isArray(groups) && groups.length === 2
             ? groups
@@ -466,6 +527,10 @@ export const handleConnection = (io,socket) => {
             groups: normalizedGroups,
             currentWord: "",
             turnsEndAt: 0,
+            roundsPlayed: 0,
+            roundLimit: finalRoundLimit,
+            winner: null,
+            phase: "lobby",
         };
 
         game.currentWord = pickWord(game);
@@ -495,7 +560,7 @@ export const handleConnection = (io,socket) => {
         if (!roomCode) return;
 
         const game = roomGames.get(roomCode);
-        if (!game) return;
+        if (!game || game.phase === "finished") return;
 
         const idx = Number(groupIndex);
         if (!Number.isInteger(idx) || idx < 0 || idx > 1) return;
@@ -509,11 +574,17 @@ export const handleConnection = (io,socket) => {
         }
 
         game.groups[idx][0] += 30;
+        game.roundsPlayed += 1;
         game.currentTeamIndex = game.currentTeamIndex === 0 ? 1 : 0;
         game.groups = game.groups.map(([score, role]) => [score, role === "Drawing" ? "Guessing" : "Drawing"]);
         game.currentWord = pickWord(game);
         game.turnsEndAt = Date.now() + game.turnMs;
         game.phase = "playing";
+
+        if (game.roundsPlayed >= game.roundLimit) {
+            finishGame(io, roomCode);
+            return;
+        }
 
         syncGameToRoom(roomCode, game);
         io.to(roomCode).emit("game:state", toPublicState(game));
@@ -559,6 +630,68 @@ export const handleConnection = (io,socket) => {
         if (game) {
             socket.emit("game:state", toPublicState(game));
         }
+    })
+
+    socket.on("game:rematch", ({ roomCode }) => {
+        if (!roomCode) return;
+
+        const game = roomGames.get(roomCode);
+        if (roomTimers.has(roomCode)) {
+            clearTimeout(roomTimers.get(roomCode));
+            roomTimers.delete(roomCode);
+        }
+
+        const room = rooms.get(roomCode);
+        const freshGroups = Array.isArray(room?.teams) && room.teams.length >= 2
+            ? [
+                [0, "Drawing"],
+                [0, "Guessing"],
+            ]
+            : defaultTeamState();
+
+        const nextGame = {
+            roomCode,
+            wordPool: game?.wordPool || [],
+            bag: [],
+            turnMs: game?.turnMs || 60000,
+            groups: freshGroups,
+            currentWord: "",
+            turnsEndAt: 0,
+            roundsPlayed: 0,
+            roundLimit: Number.isInteger(game?.roundLimit) && game.roundLimit > 0 ? game.roundLimit : 1,
+            winner: null,
+            phase: "lobby",
+        };
+
+        if (nextGame.wordPool.length === 0) {
+            const roomSettings = room?.settings || {};
+            const pool = roomSettings.words || [];
+            nextGame.wordPool = Array.isArray(pool) && pool.length > 0 ? pool : ["Cat", "Dog", "House", "Car"];
+        }
+
+        nextGame.currentWord = pickWord(nextGame);
+        nextGame.turnsEndAt = Date.now() + nextGame.turnMs;
+        nextGame.phase = "playing";
+        nextGame.currentTeamIndex = 0;
+        roomGames.set(roomCode, nextGame);
+
+        if (room) {
+            room.game = {
+                ...nextGame,
+                currentWord: nextGame.currentWord,
+                currentWordVisible: false,
+                winner: null,
+            };
+            room.teams = [
+                { name: "Team 1", score: 0, players: room.teams[0]?.players || [] },
+                { name: "Team 2", score: 0, players: room.teams[1]?.players || [] },
+            ];
+        }
+
+        syncGameToRoom(roomCode, nextGame);
+        io.to(roomCode).emit("game:state", toPublicState(nextGame));
+        emitPersonalizedRoomSnapshots(io, roomCode);
+        scheduleAdvance(io, roomCode);
     })
 
     socket.on("disconnect", () => {

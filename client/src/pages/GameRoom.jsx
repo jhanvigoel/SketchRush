@@ -6,7 +6,9 @@ import { useLocation } from 'react-router-dom'
 import RoomNavbar from '../components/RoomNavbar'
 import WordBox from '../components/WordBox'
 import GuessPanel from '../components/GuessPanel'
+import GameResultModal from '../components/GameResultModal'
 import { useGroupContext } from '../context/GroupContext'
+import { emitGameRematch } from '../services/Socket'
 
 const GameRoom = () => {
 
@@ -18,6 +20,7 @@ const GameRoom = () => {
   const effectiveRoomCode = roomCode || roomName || groupsRoomCode || "";
   const { state: groupState, startTurn } = useGroupContext();
   const gameStarted = groupState.turnsEndAt > Date.now();
+  const gameFinished = groupState.phase === 'finished' || Boolean(groupState.winner);
 
   const handleStartGame = () => {
     if (!effectiveRoomCode) {
@@ -29,6 +32,11 @@ const GameRoom = () => {
     if (!result?.ok) {
       alert(result?.reason || "Could not start game");
     }
+  };
+
+  const handleRematch = () => {
+    if (!effectiveRoomCode) return;
+    emitGameRematch({ roomCode: effectiveRoomCode });
   };
 
   useEffect(() => {
@@ -83,7 +91,10 @@ const GameRoom = () => {
               <div className="rounded-2xl bg-white p-5 shadow-lg">
               <div className="relative h-[360px] w-full rounded-xl border border-slate-200">
                 <Canvas />
-                {!gameStarted && (
+                {gameFinished && (
+                  <GameResultModal winner={groupState.winner} onRematch={handleRematch} />
+                )}
+                {!gameStarted && !gameFinished && (
                   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-indigo-600/90 backdrop-blur-sm">
                     <div className="text-2xl font-extrabold text-white mb-2">Ready to Play?</div>
                     <p className="text-indigo-100 text-sm mb-6">Click below to kick off the first round!</p>

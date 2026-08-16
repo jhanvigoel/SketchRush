@@ -214,8 +214,12 @@ export const offCanvasClear = (callback) => {
   socket.off("canvas:clear", callback);
 }
 
-export const emitGameStart = ({ roomCode, wordPool, turnMs, groups }) => {
-  socket.emit("game:start", { roomCode, wordPool, turnMs, groups });
+export const emitGameStart = ({ roomCode, wordPool, turnMs, groups, roundLimit }) => {
+  socket.emit("game:start", { roomCode, wordPool, turnMs, groups, roundLimit });
+}
+
+export const emitGameRematch = ({ roomCode }) => {
+  socket.emit("game:rematch", { roomCode });
 }
 
 export const emitGameStateRequest = ({ roomCode }) => {
