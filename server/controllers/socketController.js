@@ -382,10 +382,10 @@ export const handleConnection = (io,socket) => {
 
         socket.join(roomCode);
         socket.emit("roomCreated", {success: true, roomCode, message: "Room created successfully"});
-        socket.emit("room:snapshot", buildRoomSnapshot(roomCode, resolvedSessionId));
+        emitPersonalizedRoomSnapshots(io, roomCode);
 
         if (room.game?.phase && room.game.phase !== "lobby") {
-            socket.emit("game:state", room.game);
+            socket.emit("game:state", toPublicState(room.game));
         }
 
     })
@@ -412,7 +412,7 @@ export const handleConnection = (io,socket) => {
 
         socket.join(roomCode);
         socket.emit("RoomJoined", {success: true, roomCode, message: "Joined room successfully"});
-        socket.emit("room:snapshot", buildRoomSnapshot(roomCode, resolvedSessionId));
+        emitPersonalizedRoomSnapshots(io, roomCode);
 
     })
 

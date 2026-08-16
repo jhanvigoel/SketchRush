@@ -247,7 +247,27 @@ This is an intentional choice because:
 
 This keeps the code readable in a small codebase while still supporting proper real-time updates.
 
-## 18. Overall architectural summary
+## 18. Observed sync gap: canvas stayed in sync while team and game state drifted
+
+This was one of the key multiplayer consistency issues we observed during testing.
+
+The difference is important:
+
+- Canvas updates are broadcast directly with room-level events such as `canvas:draw-start`, `canvas:draw-line`, and `canvas:clear`.
+- Team membership, score, turn state, and room status are not updated through the same path; they depend on server-authored room snapshots and game state messages.
+
+Because of that, the canvas could look synchronized even when the roster and game metadata were stale on another client. In other words, the drawing layer was being synced by direct event broadcasting, while the player list and round state were still being driven by a separate state path.
+
+This gap surfaced because the app is built around two forms of synchronization:
+
+1. room broadcast events for real-time drawing data
+2. snapshot-driven state refresh for room membership and turn metadata
+
+The architectural lesson is that the UI should always trust the authoritative server snapshot for room membership and game state, not local assumptions from earlier render cycles or stale grouped state. In practice, this means the room roster and turn/state panels must always be rehydrated from the latest `room:snapshot` or `game:state` payload instead of assuming that a local variable remains valid after another player joins.
+
+This was a meaningful change in the project design because it made the team flow and round flow explicitly server-controlled, while canvas remained a direct stream. For a real multiplayer game, this distinction must stay intentional and consistent, or players can see different room states even while the drawing canvas continues to update.
+
+## 19. Overall architectural summary
 
 The app’s design follows a practical real-time game pattern:
 
@@ -259,5 +279,6 @@ The app’s design follows a practical real-time game pattern:
 - session resume for continuity
 - snapshot-based UI state for stable rendering
 - lightweight validation and minimal persistence for speed and simplicity
+- explicit separation between direct drawing broadcast and authoritative room-state sync
 
 This gives the project a simple but strong base. It is easy to understand, debug, and extend without introducing heavy infrastructure. The tradeoff is that it is intentionally optimized for a compact multiplayer prototype rather than large-scale production workloads.
