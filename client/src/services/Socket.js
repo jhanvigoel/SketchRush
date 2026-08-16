@@ -226,6 +226,10 @@ export const emitGameStateRequest = ({ roomCode }) => {
   socket.emit("game:request-state", { roomCode });
 }
 
+export const emitRoomSnapshotRequest = ({ roomCode }) => {
+  socket.emit("room:request-snapshot", { roomCode });
+}
+
 export const onGameState = (callback) => {
   socket.on("game:state", callback);
 }

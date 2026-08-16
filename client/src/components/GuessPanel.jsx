@@ -26,6 +26,13 @@ const GuessPanel = () => {
     };
   }, []);
 
+  const getTeamStatus = (team) => {
+    if (!team) return '';
+    if (typeof team.status === 'string') return team.status;
+    if (Array.isArray(team) && team[1]) return team[1];
+    return '';
+  };
+
   const handleGuess = () => {
 
       const guess = currGuess.trim().toLowerCase();
@@ -37,7 +44,10 @@ const GuessPanel = () => {
         return;
       }
 
-      if (groups?.[myTeamIdx]?.[1] !== "Guessing") {
+      const teamStatus = getTeamStatus(groups?.[myTeamIdx]);
+      const isDrawing = currentWordVisible || teamStatus === "Drawing" || state.currentTeamIndex === myTeamIdx;
+
+      if (isDrawing) {
         setStatus("Only guessing team can submit now");
         return;
       }
@@ -64,9 +74,15 @@ const GuessPanel = () => {
               <div className="mt-3 flex gap-3">
                   <input
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  placeholder="Type guess..."
+                  placeholder="Type guess and press Enter..."
                   value = {currGuess}
                   onChange = {(e) => setGuess(e.target.value)}
+                  onKeyDown = {(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleGuess();
+                    }
+                  }}
                   />
                   <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white" onClick={handleGuess}>
                   Send

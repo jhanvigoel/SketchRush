@@ -96,6 +96,11 @@ const syncGameToRoom = (roomCode, game) => {
         return;
     }
 
+    const turnsPlayed = Number.isInteger(game.turnsPlayed) ? game.turnsPlayed : 0;
+    const roundsPlayed = Number.isInteger(game.roundsPlayed) ? game.roundsPlayed : 0;
+    const roundLimit = Number.isInteger(game.roundLimit) ? game.roundLimit : 0;
+    const currentRound = roundLimit > 0 ? Math.min(roundLimit, roundsPlayed + 1) : 1;
+
     room.game = {
         phase: game.phase || "playing",
         currentWord: game.currentWord || "",
@@ -104,8 +109,10 @@ const syncGameToRoom = (roomCode, game) => {
         currentTeamIndex: Number.isInteger(game.currentTeamIndex) ? game.currentTeamIndex : 0,
         groups: game.groups || defaultTeamState(),
         winner: game.winner || null,
-        roundsPlayed: Number.isInteger(game.roundsPlayed) ? game.roundsPlayed : 0,
-        roundLimit: Number.isInteger(game.roundLimit) ? game.roundLimit : 0,
+        turnsPlayed,
+        roundsPlayed,
+        roundLimit,
+        currentRound,
     };
 
     room.teams.forEach((team, idx) => {
@@ -188,13 +195,28 @@ const emitPersonalizedRoomSnapshots = (io, roomCode) => {
         return;
     }
 
-    for (const player of room.players.values()) {
-        if (!player.connected || !player.socketId) {
+    const currentRoomSockets = io.sockets.adapter.rooms.get(roomCode) || new Set();
+
+    for (const socketId of currentRoomSockets) {
+        const socket = io.sockets.sockets.get(socketId);
+        const sessionId = socket?.data?.sessionId || socketId;
+
+        if (!socket || !sessionId) {
             continue;
         }
 
-        io.to(player.socketId).emit("room:snapshot", buildRoomSnapshot(roomCode, player.sessionId));
+        const player = room.players.get(sessionId);
+        if (!player || !player.connected) {
+            continue;
+        }
+
+        io.to(socketId).emit("room:snapshot", buildRoomSnapshot(roomCode, sessionId));
     }
+};
+
+const emitGroupListToRoom = (io, roomCode) => {
+    const all = Allgroups({ roomCode });
+    io.to(roomCode).emit("getAllGroup", { success: true, groups: all.groups });
 };
 
 const attachPlayerToRoom = (roomCode, { sessionId, socketId, userName, groupName = "", teamIndex = -1 }) => {
@@ -262,18 +284,27 @@ const pickWord = (game) => {
     return next || "";
 };
 
-const toPublicState = (game) => ({
-    groups: game.groups,
-    turnsEndAt: game.turnsEndAt,
-    turnMs: game.turnMs,
-    phase: game.phase || "playing",
-    currentTeamIndex: Number.isInteger(game.currentTeamIndex) ? game.currentTeamIndex : 0,
-    currentWordVisible: false,
-    winner: game.winner || null,
-    roundsPlayed: Number.isInteger(game.roundsPlayed) ? game.roundsPlayed : 0,
-    roundLimit: Number.isInteger(game.roundLimit) ? game.roundLimit : 0,
-    gameOver: game.phase === "finished",
-});
+const toPublicState = (game) => {
+    const turnsPlayed = Number.isInteger(game.turnsPlayed) ? game.turnsPlayed : 0;
+    const roundsPlayed = Number.isInteger(game.roundsPlayed) ? game.roundsPlayed : 0;
+    const roundLimit = Number.isInteger(game.roundLimit) ? game.roundLimit : 0;
+    const currentRound = roundLimit > 0 ? Math.min(roundLimit, roundsPlayed + 1) : 1;
+
+    return {
+        groups: game.groups,
+        turnsEndAt: game.turnsEndAt,
+        turnMs: game.turnMs,
+        phase: game.phase || "playing",
+        currentTeamIndex: Number.isInteger(game.currentTeamIndex) ? game.currentTeamIndex : 0,
+        currentWordVisible: false,
+        winner: game.winner || null,
+        turnsPlayed,
+        roundsPlayed,
+        roundLimit,
+        currentRound,
+        gameOver: game.phase === "finished",
+    };
+};
 
 const normalizeText = (text) => String(text || "").trim().toLowerCase();
 
@@ -335,17 +366,23 @@ const scheduleAdvance = (io, roomCode) => {
         const curr = roomGames.get(roomCode);
         if (!curr || curr.phase === "finished") return;
 
-        curr.roundsPlayed += 1;
-        curr.currentTeamIndex = curr.currentTeamIndex === 0 ? 1 : 0;
-        curr.groups = curr.groups.map(([score, role]) => [score, role === "Drawing" ? "Guessing" : "Drawing"]);
-        curr.currentWord = pickWord(curr);
-        curr.turnsEndAt = Date.now() + curr.turnMs;
-        curr.phase = "playing";
+        curr.turnsPlayed = (curr.turnsPlayed || 0) + 1;
+        const numTeams = Array.isArray(curr.groups) && curr.groups.length > 0 ? curr.groups.length : 2;
+        curr.roundsPlayed = Math.floor(curr.turnsPlayed / numTeams);
 
         if (curr.roundsPlayed >= curr.roundLimit) {
             finishGame(io, roomCode);
             return;
         }
+
+        curr.currentTeamIndex = (curr.currentTeamIndex + 1) % numTeams;
+        curr.groups = curr.groups.map(([score], idx) => [
+            score,
+            idx === curr.currentTeamIndex ? "Drawing" : "Guessing"
+        ]);
+        curr.currentWord = pickWord(curr);
+        curr.turnsEndAt = Date.now() + curr.turnMs;
+        curr.phase = "playing";
 
         syncGameToRoom(roomCode, curr);
         io.to(roomCode).emit("game:state", toPublicState(curr));
@@ -382,6 +419,7 @@ export const handleConnection = (io,socket) => {
 
         socket.join(roomCode);
         socket.emit("roomCreated", {success: true, roomCode, message: "Room created successfully"});
+        emitGroupListToRoom(io, roomCode);
         emitPersonalizedRoomSnapshots(io, roomCode);
 
         if (room.game?.phase && room.game.phase !== "lobby") {
@@ -412,6 +450,7 @@ export const handleConnection = (io,socket) => {
 
         socket.join(roomCode);
         socket.emit("RoomJoined", {success: true, roomCode, message: "Joined room successfully"});
+        emitGroupListToRoom(io, roomCode);
         emitPersonalizedRoomSnapshots(io, roomCode);
 
     })
@@ -480,8 +519,7 @@ export const handleConnection = (io,socket) => {
         socket.to(roomCode).emit("User Joined Group",{message : "New user Joined", userName : userName, groupName : groupName});
         socket.emit("groupJoined",{success: true,groupId : result.groupId, groupName});
 
-        const all = Allgroups({ roomCode });
-        io.to(roomCode).emit("getAllGroup", { success: true, groups: all.groups });
+        emitGroupListToRoom(io, roomCode);
         emitPersonalizedRoomSnapshots(io, roomCode);
     })
 
@@ -510,6 +548,18 @@ export const handleConnection = (io,socket) => {
             return;
         }
 
+        const room = getOrCreateRoomState(roomCode);
+
+        // Ensure all players have correct team indices based on their groups
+        for (const player of room.players.values()) {
+            if (player.groupName) {
+                const teamIdx = getTeamIndexForGroup(room, player.groupName);
+                player.teamIndex = teamIdx;
+            }
+        }
+
+        syncTeamPlayers(room);
+
         const normalizedTurnMs = Number(turnMs);
         const safeTurnMs = Number.isFinite(normalizedTurnMs) && normalizedTurnMs > 1000 ? normalizedTurnMs : 60000;
         const safeRoundLimit = Number(roundLimit);
@@ -527,6 +577,7 @@ export const handleConnection = (io,socket) => {
             groups: normalizedGroups,
             currentWord: "",
             turnsEndAt: 0,
+            turnsPlayed: 0,
             roundsPlayed: 0,
             roundLimit: finalRoundLimit,
             winner: null,
@@ -556,6 +607,13 @@ export const handleConnection = (io,socket) => {
         socket.emit("game:state", toPublicState(game));
     })
 
+    socket.on("room:request-snapshot", ({ roomCode }) => {
+        if (!roomCode) return;
+
+        const resolvedSessionId = socket.data.sessionId || socket.id;
+        socket.emit("room:snapshot", buildRoomSnapshot(roomCode, resolvedSessionId));
+    })
+
     socket.on("game:submit-guess", ({ roomCode, guess, groupIndex }) => {
         if (!roomCode) return;
 
@@ -574,17 +632,23 @@ export const handleConnection = (io,socket) => {
         }
 
         game.groups[idx][0] += 30;
-        game.roundsPlayed += 1;
-        game.currentTeamIndex = game.currentTeamIndex === 0 ? 1 : 0;
-        game.groups = game.groups.map(([score, role]) => [score, role === "Drawing" ? "Guessing" : "Drawing"]);
-        game.currentWord = pickWord(game);
-        game.turnsEndAt = Date.now() + game.turnMs;
-        game.phase = "playing";
+        game.turnsPlayed = (game.turnsPlayed || 0) + 1;
+        const numTeams = Array.isArray(game.groups) && game.groups.length > 0 ? game.groups.length : 2;
+        game.roundsPlayed = Math.floor(game.turnsPlayed / numTeams);
 
         if (game.roundsPlayed >= game.roundLimit) {
             finishGame(io, roomCode);
             return;
         }
+
+        game.currentTeamIndex = (game.currentTeamIndex + 1) % numTeams;
+        game.groups = game.groups.map(([score], tIdx) => [
+            score,
+            tIdx === game.currentTeamIndex ? "Drawing" : "Guessing"
+        ]);
+        game.currentWord = pickWord(game);
+        game.turnsEndAt = Date.now() + game.turnMs;
+        game.phase = "playing";
 
         syncGameToRoom(roomCode, game);
         io.to(roomCode).emit("game:state", toPublicState(game));
@@ -618,6 +682,13 @@ export const handleConnection = (io,socket) => {
         player.socketId = socket.id;
         player.connected = true;
         player.userName = userName || player.userName;
+
+        // Ensure player has correct team index based on their group
+        if (player.groupName) {
+            player.teamIndex = getTeamIndexForGroup(room, player.groupName);
+        }
+
+        syncTeamPlayers(room);
 
         socket.data.sessionId = resolvedSessionId;
         socket.data.roomCode = resolvedRoomCode;
@@ -657,6 +728,7 @@ export const handleConnection = (io,socket) => {
             groups: freshGroups,
             currentWord: "",
             turnsEndAt: 0,
+            turnsPlayed: 0,
             roundsPlayed: 0,
             roundLimit: Number.isInteger(game?.roundLimit) && game.roundLimit > 0 ? game.roundLimit : 1,
             winner: null,

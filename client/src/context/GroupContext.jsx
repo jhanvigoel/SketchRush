@@ -15,6 +15,8 @@ const initialState = {
     winner: null,
     roundLimit: 0,
     roundsPlayed: 0,
+    turnsPlayed: 0,
+    currentRound: 1,
 }
 
 function reducer(state,action){
@@ -24,19 +26,30 @@ function reducer(state,action){
             return {...state,currentWord : action.payload};
         case "SET_TURN_END":
             return {...state,turnsEndAt: action.payload};
-        case "SET_GAME_STATE":
+        case "SET_GAME_STATE": {
+            const p = action.payload || {};
+            const roundLimit = Number.isInteger(p.roundLimit) ? p.roundLimit : state.roundLimit;
+            const roundsPlayed = Number.isInteger(p.roundsPlayed) ? p.roundsPlayed : state.roundsPlayed;
+            const turnsPlayed = Number.isInteger(p.turnsPlayed) ? p.turnsPlayed : state.turnsPlayed;
+            const currentRound = p.currentRound !== undefined
+                ? p.currentRound
+                : (roundLimit > 0 ? Math.min(roundLimit, roundsPlayed + 1) : 1);
+
             return {
                 ...state,
-                groups: action.payload.groups || state.groups,
-                currentWord: action.payload.currentWord || "",
-                turnsEndAt: action.payload.turnsEndAt || 0,
-                currentWordVisible: action.payload.currentWordVisible ?? false,
-                currentTeamIndex: action.payload.currentTeamIndex ?? 0,
-                phase: action.payload.phase || "playing",
-                winner: action.payload.winner ?? null,
-                roundLimit: Number.isInteger(action.payload.roundLimit) ? action.payload.roundLimit : state.roundLimit,
-                roundsPlayed: Number.isInteger(action.payload.roundsPlayed) ? action.payload.roundsPlayed : state.roundsPlayed,
+                groups: p.groups || state.groups,
+                currentWord: p.currentWord !== undefined ? p.currentWord : state.currentWord,
+                turnsEndAt: p.turnsEndAt !== undefined ? p.turnsEndAt : state.turnsEndAt,
+                currentWordVisible: typeof p.currentWordVisible === 'boolean' ? p.currentWordVisible : state.currentWordVisible,
+                currentTeamIndex: Number.isInteger(p.currentTeamIndex) ? p.currentTeamIndex : state.currentTeamIndex,
+                phase: p.phase || state.phase,
+                winner: p.winner !== undefined ? p.winner : state.winner,
+                roundLimit,
+                roundsPlayed,
+                turnsPlayed,
+                currentRound,
             };
+        }
         default:
             return state;
     }
@@ -114,24 +127,44 @@ const GroupContext = ({children}) => {
 
     useEffect(() => {
         const handleGameState = (payload) => {
-            dispatch({ type: "SET_GAME_STATE", payload });
+            if (!payload) return;
+            // Public game:state does not include personalized drawer word or visibility.
+            // Omit currentWord and currentWordVisible so we don't wipe out the active drawer's state.
+            const { currentWord, currentWordVisible, ...publicState } = payload;
+            dispatch({ type: "SET_GAME_STATE", payload: publicState });
         };
 
         const handleRoomSnapshot = (payload) => {
             if (!payload?.ok) return;
 
+            const nextGroups = Array.isArray(payload.teams)
+                ? payload.teams
+                : Array.isArray(payload.game?.groups)
+                    ? payload.game.groups
+                    : undefined;
+
+            const safeWord = payload.game?.currentWord !== undefined
+                ? payload.game.currentWord
+                : (payload.currentWord !== undefined ? payload.currentWord : undefined);
+
+            const safeVisible = payload.game?.currentWordVisible !== undefined
+                ? payload.game.currentWordVisible
+                : (payload.currentWordVisible !== undefined ? payload.currentWordVisible : undefined);
+
             dispatch({
                 type: "SET_GAME_STATE",
                 payload: {
-                    groups: payload.game?.groups,
-                    currentWord: payload.game?.currentWord || "",
-                    turnsEndAt: payload.game?.turnsEndAt || 0,
-                    currentWordVisible: payload.game?.currentWordVisible ?? false,
+                    groups: nextGroups,
+                    currentWord: safeWord,
+                    turnsEndAt: payload.game?.turnsEndAt ?? payload.game?.turnEndsAt ?? 0,
+                    currentWordVisible: safeVisible,
                     currentTeamIndex: payload.game?.currentTeamIndex ?? 0,
                     phase: payload.game?.phase || "lobby",
                     winner: payload.game?.winner ?? null,
                     roundLimit: payload.game?.roundLimit ?? 0,
                     roundsPlayed: payload.game?.roundsPlayed ?? 0,
+                    turnsPlayed: payload.game?.turnsPlayed ?? 0,
+                    currentRound: payload.game?.currentRound ?? 1,
                 },
             });
         };

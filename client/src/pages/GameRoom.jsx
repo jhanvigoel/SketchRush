@@ -8,7 +8,7 @@ import WordBox from '../components/WordBox'
 import GuessPanel from '../components/GuessPanel'
 import GameResultModal from '../components/GameResultModal'
 import { useGroupContext } from '../context/GroupContext'
-import { emitGameRematch } from '../services/Socket'
+import { emitGameRematch, emitRoomSnapshotRequest } from '../services/Socket'
 
 const GameRoom = () => {
 
@@ -46,22 +46,34 @@ const GameRoom = () => {
   }, [roomCode, roomName, dispatch]);
 
   useEffect(() => {
+    if (effectiveRoomCode) {
+      emitRoomSnapshotRequest({ roomCode: effectiveRoomCode });
+    }
+  }, [effectiveRoomCode]);
+
+  useEffect(() => {
     if (!userName || !Array.isArray(groups) || groups.length === 0) return;
 
-    const idx = groups.findIndex((g) => (g.users || []).some((u) => u.name === userName));
+    const idx = groups.findIndex((g) =>
+      (g.users || g.players || []).some((u) => u.id === state.sessionId || u.name === userName)
+    );
     if (idx >= 0 && String(idx) !== String(groupIndex)) {
       dispatch({ type: "SET_GROUP_INDEX", payload: String(idx) });
     }
-  }, [groups, userName, groupIndex, dispatch]);
+  }, [groups, userName, state.sessionId, groupIndex, dispatch]);
 
   useEffect(() => {
     const handleSnapshot = (data) => {
       if (!data.ok) return;
-      dispatch({ type: "SET_GROUPS", payload: data.teams });
+
+      const nextTeams = Array.isArray(data.teams) ? data.teams : [];
+      dispatch({ type: "SET_GROUPS", payload: nextTeams });
       dispatch({ type: "SET_ROOM", payload: data.roomCode });
-      if (data.yourTeamIndex !== undefined && data.yourTeamIndex !== null) {
+
+      if (data.yourTeamIndex !== undefined && data.yourTeamIndex !== null && Number(data.yourTeamIndex) >= 0) {
         dispatch({ type: "SET_GROUP_INDEX", payload: String(data.yourTeamIndex) });
       }
+
       if (data.yourGroupName) {
         dispatch({ type: "SET_GROUP_NAME", payload: data.yourGroupName });
       }
@@ -89,7 +101,7 @@ const GameRoom = () => {
               <WordBox />
 
               <div className="rounded-2xl bg-white p-5 shadow-lg">
-              <div className="relative h-[360px] w-full rounded-xl border border-slate-200">
+              <div className="relative w-full rounded-xl">
                 <Canvas />
                 {gameFinished && (
                   <GameResultModal winner={groupState.winner} onRematch={handleRematch} />
@@ -107,10 +119,6 @@ const GameRoom = () => {
                     </button>
                   </div>
                 )}
-              </div>
-              <div className="mt-3 flex items-center gap-3">
-                <button className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold">Clear</button>
-                <button className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold">Undo</button>
               </div>
             </div>
             

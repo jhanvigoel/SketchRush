@@ -30,7 +30,25 @@ const Canvas = () => {
   const { roomCode, groupIndex } = socketState;
   const { state: groupState } = useGroupContext();
   const myTeamIdx = groupIndex !== '' ? Number(groupIndex) : -1;
-  const canDraw = myTeamIdx >= 0 && groupState.groups?.[myTeamIdx]?.[1] === 'Drawing';
+
+  const getTeamStatus = (team) => {
+    if (!team) return '';
+    if (typeof team.status === 'string') return team.status;
+    if (Array.isArray(team) && team[1]) return team[1];
+    return '';
+  };
+
+  const isMyTeamDrawing = myTeamIdx >= 0 && (
+    getTeamStatus(groupState.groups?.[myTeamIdx]) === 'Drawing' ||
+    groupState.currentTeamIndex === myTeamIdx
+  );
+
+  const isGameActive = groupState.phase === 'playing' || (groupState.turnsEndAt > Date.now());
+  const canDraw = Boolean(
+    groupState.phase !== 'finished' &&
+    !groupState.winner &&
+    (groupState.currentWordVisible || (isGameActive && isMyTeamDrawing))
+  );
 
   useEffect(() => {
     if (!canDraw) {

@@ -41,16 +41,27 @@ const RoomNavbar = ({RoomName}) => {
 
         <div className = "flex items-center justify-between">
 
-            <div className = "flex items-center gap-3">
+            <div className = "flex items-center gap-6">
 
-                <div className = "flex h-10 w-10 items-center justify-center rounded-lg">
-                     <Clock className = "h-5 w-5"/>
+                <div className = "flex items-center gap-3">
+                    <div className = "flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                         <Clock className = "h-5 w-5"/>
+                    </div>
+
+                    <div>
+                        <div className = "text-xs font-semibold text-slate-500">TIME</div>
+                        <div className = "text-lg font-bold text-slate-900">{timeLeft > 0 ? formatTime(timeLeft) : "0:00"}</div>
+                    </div>
                 </div>
 
-                <div>
-                    <div className = "text-xs font-semibold text-slate-500">TIME</div>
-                    <div className = "text-lg font-bold text-slate-900">{timeLeft > 0 ? formatTime(timeLeft) : "0:00"}</div>
-                </div>
+                {state.roundLimit > 0 && (
+                    <div className = "rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
+                        <div className = "text-[11px] font-bold uppercase tracking-wider text-slate-400">Round</div>
+                        <div className = "text-lg font-extrabold text-indigo-600">
+                            {state.currentRound || Math.min(state.roundLimit, (state.roundsPlayed || 0) + 1)} <span className="text-sm font-semibold text-slate-400">/ {state.roundLimit}</span>
+                        </div>
+                    </div>
+                )}
 
             </div>
 
